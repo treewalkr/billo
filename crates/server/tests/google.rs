@@ -646,6 +646,99 @@ async fn existing_user_gets_email_updated() {
 }
 
 // ---------------------------------------------------------------------------------
+// Native: POST /auth/google
+
+async fn native(t: &T, body: Value) -> Res {
+    t.call(Method::POST, "/api/v1/auth/google", None, Some(body))
+        .await
+}
+
+#[tokio::test]
+async fn native_accepts_ios_and_web_audiences() {
+    let Some(t) = setup().await else { return };
+    let sub = sub();
+    let mut c = claims(&sub, "phone@example.com", None);
+    c["aud"] = json!(IOS_CLIENT);
+    let res = native(
+        &t,
+        json!({ "id_token": sign(&c, KEY_A, "key-a"), "device_label": "iPhone" }),
+    )
+    .await;
+    assert_eq!(res.status, StatusCode::OK, "{}", res.body);
+    let body = res.json();
+    assert_eq!(body["email"], "phone@example.com");
+    let token = body["token"].as_str().unwrap();
+    let me = t.call(Method::GET, "/api/v1/me", Some(token), None).await;
+    assert_eq!(me.json()["user_id"], body["user_id"]);
+
+    // Same Google account through the web client: same user, email kept current.
+    let c = claims(&sub, "renamed@example.com", None);
+    let res = native(&t, json!({ "id_token": sign(&c, KEY_A, "key-a") })).await;
+    assert_eq!(res.status, StatusCode::OK, "{}", res.body);
+    assert_eq!(res.json()["user_id"], body["user_id"]);
+    assert_eq!(
+        t.user_email(body["user_id"].as_str().unwrap()).await,
+        "renamed@example.com"
+    );
+}
+
+#[tokio::test]
+async fn native_rejects_bad_tokens() {
+    let Some(t) = setup().await else { return };
+    let mut wrong_aud = claims(&sub(), "x@example.com", None);
+    wrong_aud["aud"] = json!("someone-else.apps");
+    let mut wrong_iss = claims(&sub(), "x@example.com", None);
+    wrong_iss["iss"] = json!("https://evil.example");
+    let mut unverified = claims(&sub(), "x@example.com", None);
+    unverified["email_verified"] = json!(false);
+    let ok = claims(&sub(), "x@example.com", None);
+    let cases = [
+        (
+            json!({ "id_token": sign(&wrong_aud, KEY_A, "key-a") }),
+            "not valid",
+        ),
+        (
+            json!({ "id_token": sign(&wrong_iss, KEY_A, "key-a") }),
+            "not valid",
+        ),
+        (
+            json!({ "id_token": sign(&ok, KEY_B, "key-a") }),
+            "not valid",
+        ),
+        (json!({ "id_token": "not.a.jwt" }), "not valid"),
+        (
+            json!({ "id_token": sign(&unverified, KEY_A, "key-a") }),
+            "not verified",
+        ),
+        // A nonce in the request must match the token's.
+        (
+            json!({ "id_token": sign(&ok, KEY_A, "key-a"), "nonce": "n-1" }),
+            "not valid",
+        ),
+    ];
+    for (body, msg) in cases {
+        let res = native(&t, body).await;
+        assert_eq!(res.status, StatusCode::UNAUTHORIZED, "{}", res.body);
+        assert_eq!(res.json()["error"]["code"], "unauthorized");
+        assert!(
+            res.json()["error"]["message"]
+                .as_str()
+                .unwrap()
+                .contains(msg)
+        );
+    }
+    let with_nonce = claims(&sub(), "x@example.com", Some("n-1"));
+    let res = native(
+        &t,
+        json!({ "id_token": sign(&with_nonce, KEY_A, "key-a"), "nonce": "n-1" }),
+    )
+    .await;
+    assert_eq!(res.status, StatusCode::OK, "{}", res.body);
+    let res = native(&t, json!({ "token": "x" })).await;
+    assert_eq!(res.status, StatusCode::UNPROCESSABLE_ENTITY);
+}
+
+// ---------------------------------------------------------------------------------
 // Sign-in methods
 
 #[tokio::test]

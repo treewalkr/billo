@@ -22,6 +22,17 @@ pub struct LoginResponse {
     pub email: Option<String>,
 }
 
+/// Body of `POST /api/v1/auth/google`: an ID token from the platform's Google sign-in.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct GoogleLoginRequest {
+    pub id_token: String,
+    /// Checked against the token's `nonce` claim when given.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub nonce: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub device_label: Option<String>,
+}
+
 /// Body of `GET /api/v1/auth/methods`: which ways of signing in this server offers.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct AuthMethods {

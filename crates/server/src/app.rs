@@ -58,7 +58,8 @@ pub fn router(state: AppState) -> Router {
     if state.google.is_some() {
         api = api
             .route("/auth/google/start", get(routes::google::start))
-            .route("/auth/google/callback", get(routes::google::callback));
+            .route("/auth/google/callback", get(routes::google::callback))
+            .route("/auth/google", post(routes::google::native));
     }
     Router::new()
         .nest("/api/v1", api)

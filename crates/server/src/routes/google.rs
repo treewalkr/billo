@@ -7,11 +7,15 @@
 //!    code, verifies the ID token, signs the user in and redirects back to the app with
 //!    the session in the URL fragment (`#billo_token=…&user_id=…&email=…`), which
 //!    browsers never send to servers. Failures redirect to `#billo_error=<code>`.
+//!
+//! Native apps use `POST /api/v1/auth/google {id_token}` instead: the platform's
+//! Google sign-in returns the ID token, which is verified the same way, for either the
+//! web or the iOS client.
 
 use axum::extract::State;
 use axum::http::{StatusCode, header};
 use axum::response::{IntoResponse, Response};
-use billo_api::{ErrorBody, ErrorCode, ErrorDetail};
+use billo_api::{ErrorBody, ErrorCode, ErrorDetail, GoogleLoginRequest, LoginResponse};
 use serde::Deserialize;
 use sqlx::PgPool;
 use time::{Duration, OffsetDateTime};
@@ -19,6 +23,7 @@ use uuid::Uuid;
 
 use crate::app::AppState;
 use crate::auth::{create_session, hash_token};
+use crate::error::{ApiError, ApiResult};
 use crate::extract::{Json, Query};
 use crate::google::{Google, GoogleUser, VerifyError, code_challenge, random_string};
 
@@ -243,6 +248,38 @@ fn verify_error_code(e: &VerifyError) -> &'static str {
             code::GOOGLE
         }
     }
+}
+
+/// `POST /auth/google`: signs in with an ID token from the platform's Google sign-in.
+/// Accepts tokens issued to the web client or the iOS client; checks `nonce` only
+/// when the request carries one.
+pub async fn native(
+    State(state): State<AppState>,
+    Json(req): Json<GoogleLoginRequest>,
+) -> ApiResult<Json<LoginResponse>> {
+    let g = google(&state);
+    let device_label = req.device_label.as_deref().map(str::trim);
+    if device_label.is_some_and(|l| l.chars().count() > 100) {
+        return Err(ApiError::validation("device_label is too long"));
+    }
+    let mut audiences = vec![g.config.client_id.as_str()];
+    audiences.extend(g.config.ios_client_id.as_deref());
+    let user = g
+        .verify(req.id_token.trim(), &audiences, req.nonce.as_deref())
+        .await
+        .map_err(|e| match verify_error_code(&e) {
+            code::EMAIL_UNVERIFIED => {
+                ApiError::SignInFailed("google account email is not verified")
+            }
+            code::INVALID_TOKEN => ApiError::SignInFailed("google id token is not valid"),
+            _ => ApiError::Internal,
+        })?;
+    let (token, user_id) = sign_in(&state.db, &user, device_label).await?;
+    Ok(Json(LoginResponse {
+        token,
+        user_id,
+        email: Some(user.email),
+    }))
 }
 
 /// Finds or creates the user by Google `sub` (keeping the email current) and starts a

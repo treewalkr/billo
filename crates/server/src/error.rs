@@ -14,6 +14,8 @@ pub enum ApiError {
     NotFound,
     Validation(String),
     Unauthorized,
+    /// A sign-in proof (e.g. a Google ID token) was refused; the reason is shown.
+    SignInFailed(&'static str),
     Conflict(String),
     Internal,
 }
@@ -43,6 +45,7 @@ impl ApiError {
                 ErrorCode::Unauthorized,
                 "missing, invalid or expired session",
             ),
+            Self::SignInFailed(m) => (StatusCode::UNAUTHORIZED, ErrorCode::Unauthorized, m),
             Self::Conflict(m) => (StatusCode::CONFLICT, ErrorCode::Conflict, m),
             Self::Internal => (
                 StatusCode::INTERNAL_SERVER_ERROR,

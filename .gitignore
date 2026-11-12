@@ -1,0 +1,82 @@
+# --- Rust / Cargo ---
+/target/
+**/target/
+# Cargo.lock is committed (this is an application workspace)
+**/*.rs.bk
+*.pdb
+
+# --- Dioxus ---
+/dist/
+**/dist/
+.dioxus/
+
+# --- Web / WASM tooling ---
+node_modules/
+pkg/
+*.wasm.map
+
+# --- Android ---
+.gradle/
+**/android/**/build/
+local.properties
+*.apk
+*.aab
+*.keystore
+*.jks
+captures/
+.cxx/
+.externalNativeBuild/
+
+# --- iOS / Xcode ---
+xcuserdata/
+DerivedData/
+*.xcuserstate
+Pods/
+*.ipa
+*.dSYM.zip
+*.dSYM/
+*.mobileprovision
+*.p12
+
+# --- Environment & secrets ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+google-services.json
+GoogleService-Info.plist
+
+# --- Local database / data ---
+/data/
+*.db
+*.sqlite
+*.sqlite3
+pgdata/
+# Real bank statements used for golden tests must never be committed
+/fixtures/private/
+*.statement.pdf
+
+# --- Logs & coverage ---
+*.log
+*.profraw
+*.profdata
+lcov.info
+tarpaulin-report.html
+
+# --- Editors / OS ---
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+*.swp
+*~
+.DS_Store
+Thumbs.db
+
+# --- Local agent / tooling state ---
+.claude/settings.local.json
+COMMITS.md
+/AGENTS.md
+/CLAUDE.md
+/docs/

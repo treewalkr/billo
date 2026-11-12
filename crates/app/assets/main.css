@@ -497,3 +497,57 @@ li.over .left {
 .signin .card-head h2 {
   margin: 0;
 }
+
+/* Sync status: a small pill in the header and in More. */
+.sync-status {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #eef0f3;
+  color: #44474d;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+header .who span.sync-status {
+  overflow: visible;
+}
+
+.sync-status.synced {
+  background: #e3f5e8;
+  color: #1b6b34;
+}
+
+.sync-status.waiting,
+.sync-status.offline {
+  background: #fff4d6;
+  color: #8a6100;
+}
+
+.sync-status.error {
+  background: #fde7e7;
+  color: var(--danger);
+}
+
+.sync-notice {
+  margin: 12px 0;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #eef4ff;
+  color: #24324a;
+  font-size: 13px;
+}
+
+.sync-notice p {
+  margin: 0 0 4px;
+}
+
+#sync .main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#sync h3 {
+  margin: 0;
+}

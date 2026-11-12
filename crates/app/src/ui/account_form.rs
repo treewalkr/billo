@@ -6,8 +6,9 @@ use dioxus::prelude::*;
 
 use super::accounts::BackLink;
 use super::fields::{CheckField, NumberField, SelectField, TextField};
-use super::{ErrorBox, Screen, use_auth, use_nav};
+use super::{ErrorBox, Screen, use_nav};
 use crate::forms::{AccountDraft, CURRENCIES, DueMode, from_key, is_card_like, key};
+use crate::store::use_store;
 use crate::{api, clock, strings as s};
 
 const KINDS: [AccountKind; 5] = [
@@ -80,7 +81,7 @@ fn day_counts() -> Vec<(String, String)> {
 /// New account of `kind`, or edit `existing`.
 #[component]
 pub fn AccountForm(kind: AccountKind, existing: Option<Record<AccountData>>) -> Element {
-    let auth = use_auth();
+    let store = use_store();
     let mut nav = use_nav();
     let today = clock::today();
     let editing = existing.clone();
@@ -92,10 +93,7 @@ pub fn AccountForm(kind: AccountKind, existing: Option<Record<AccountData>>) -> 
     let mut busy = use_signal(|| false);
 
     let new_id = use_hook(api::new_id);
-    let (id, base_version) = match &existing {
-        Some(r) => (r.id, Some(r.version)),
-        None => (new_id, None),
-    };
+    let id = existing.as_ref().map_or(new_id, |r| r.id);
     let back = match &existing {
         Some(r) => Screen::Account(r.id),
         None => Screen::NewAccount(None),
@@ -113,8 +111,8 @@ pub fn AccountForm(kind: AccountKind, existing: Option<Record<AccountData>>) -> 
         error.set(None);
         busy.set(true);
         spawn(async move {
-            match auth
-                .call(|c| async move { c.put_account(id, base_version, data).await })
+            match store
+                .call(|c| async move { c.put_account(id, data).await })
                 .await
             {
                 Ok(saved) => nav.set(Screen::Account(saved.id)),

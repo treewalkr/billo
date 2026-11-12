@@ -1,18 +1,11 @@
-//! Talking to the Billo server: typed calls for every `/api/v1` resource.
-//!
-//! Reads go straight to the server for now; the offline cache and sync outbox
-//! (architecture §5) are the next step and will sit behind this module.
+//! Talking to the Billo server: sign-in and sync. Screens never call the server
+//! directly; they use the local store (`store`), which the sync engine keeps in step.
 
 use std::fmt;
 
 use billo_api::sync::{PullResponse, PushRequest, PushResponse};
-use billo_api::{
-    AccountData, BudgetData, BudgetQuery, CategoryData, DevLoginRequest, ErrorBody, ErrorCode,
-    HealthResponse, InstallmentPlanData, List, LoginResponse, MeResponse, Put, Record,
-    TransactionData, TransactionQuery,
-};
+use billo_api::{DevLoginRequest, ErrorBody, ErrorCode, HealthResponse, LoginResponse};
 use reqwest::{RequestBuilder, Response, StatusCode};
-use serde::Serialize;
 use serde::de::DeserializeOwned;
 use uuid::Uuid;
 
@@ -75,25 +68,6 @@ pub fn error_from(status: u16, body: &str) -> ApiError {
 /// A new client-generated id (UUIDv7, time-ordered).
 pub fn new_id() -> Uuid {
     Uuid::now_v7()
-}
-
-/// Query string for `GET /transactions`. Only uuids and ISO dates, so no escaping.
-fn transaction_query(q: &TransactionQuery) -> String {
-    let mut parts = Vec::new();
-    if let Some(a) = q.account_id {
-        parts.push(format!("account_id={a}"));
-    }
-    if let Some(d) = q.from {
-        parts.push(format!("from={d}"));
-    }
-    if let Some(d) = q.to {
-        parts.push(format!("to={d}"));
-    }
-    if parts.is_empty() {
-        String::new()
-    } else {
-        format!("?{}", parts.join("&"))
-    }
 }
 
 /// A connection to the server, optionally signed in.
@@ -171,136 +145,6 @@ impl Client {
         self.empty(self.http.post(self.url("/auth/logout"))).await
     }
 
-    pub async fn me(&self) -> Result<MeResponse, ApiError> {
-        self.json(self.http.get(self.url("/me"))).await
-    }
-
-    async fn list<D: DeserializeOwned>(&self, path: &str) -> Result<Vec<Record<D>>, ApiError> {
-        let list: List<D> = self.json(self.http.get(self.url(path))).await?;
-        Ok(list.items)
-    }
-
-    async fn get<D: DeserializeOwned>(&self, path: &str, id: Uuid) -> Result<Record<D>, ApiError> {
-        self.json(self.http.get(self.url(&format!("{path}/{id}"))))
-            .await
-    }
-
-    async fn put<D: Serialize + DeserializeOwned>(
-        &self,
-        path: &str,
-        id: Uuid,
-        base_version: Option<i64>,
-        data: D,
-    ) -> Result<Record<D>, ApiError> {
-        let body = Put { base_version, data };
-        self.json(self.http.put(self.url(&format!("{path}/{id}"))).json(&body))
-            .await
-    }
-
-    async fn delete(&self, path: &str, id: Uuid) -> Result<(), ApiError> {
-        self.empty(self.http.delete(self.url(&format!("{path}/{id}"))))
-            .await
-    }
-
-    pub async fn accounts(&self) -> Result<Vec<Record<AccountData>>, ApiError> {
-        self.list("/accounts").await
-    }
-
-    pub async fn account(&self, id: Uuid) -> Result<Record<AccountData>, ApiError> {
-        self.get("/accounts", id).await
-    }
-
-    /// Creates (`base_version: None`) or updates the account with this id.
-    pub async fn put_account(
-        &self,
-        id: Uuid,
-        base_version: Option<i64>,
-        data: AccountData,
-    ) -> Result<Record<AccountData>, ApiError> {
-        self.put("/accounts", id, base_version, data).await
-    }
-
-    pub async fn delete_account(&self, id: Uuid) -> Result<(), ApiError> {
-        self.delete("/accounts", id).await
-    }
-
-    pub async fn categories(&self) -> Result<Vec<Record<CategoryData>>, ApiError> {
-        self.list("/categories").await
-    }
-
-    pub async fn put_category(
-        &self,
-        id: Uuid,
-        base_version: Option<i64>,
-        data: CategoryData,
-    ) -> Result<Record<CategoryData>, ApiError> {
-        self.put("/categories", id, base_version, data).await
-    }
-
-    pub async fn delete_category(&self, id: Uuid) -> Result<(), ApiError> {
-        self.delete("/categories", id).await
-    }
-
-    /// Newest first (by `occurred_on`).
-    pub async fn transactions(
-        &self,
-        q: &TransactionQuery,
-    ) -> Result<Vec<Record<TransactionData>>, ApiError> {
-        self.list(&format!("/transactions{}", transaction_query(q)))
-            .await
-    }
-
-    pub async fn put_transaction(
-        &self,
-        id: Uuid,
-        base_version: Option<i64>,
-        data: TransactionData,
-    ) -> Result<Record<TransactionData>, ApiError> {
-        self.put("/transactions", id, base_version, data).await
-    }
-
-    pub async fn delete_transaction(&self, id: Uuid) -> Result<(), ApiError> {
-        self.delete("/transactions", id).await
-    }
-
-    pub async fn installment_plans(&self) -> Result<Vec<Record<InstallmentPlanData>>, ApiError> {
-        self.list("/installment-plans").await
-    }
-
-    pub async fn put_installment_plan(
-        &self,
-        id: Uuid,
-        base_version: Option<i64>,
-        data: InstallmentPlanData,
-    ) -> Result<Record<InstallmentPlanData>, ApiError> {
-        self.put("/installment-plans", id, base_version, data).await
-    }
-
-    pub async fn delete_installment_plan(&self, id: Uuid) -> Result<(), ApiError> {
-        self.delete("/installment-plans", id).await
-    }
-
-    pub async fn budgets(&self, q: &BudgetQuery) -> Result<Vec<Record<BudgetData>>, ApiError> {
-        let path = match q.period_month {
-            Some(m) => format!("/budgets?period_month={m}"),
-            None => "/budgets".to_owned(),
-        };
-        self.list(&path).await
-    }
-
-    pub async fn put_budget(
-        &self,
-        id: Uuid,
-        base_version: Option<i64>,
-        data: BudgetData,
-    ) -> Result<Record<BudgetData>, ApiError> {
-        self.put("/budgets", id, base_version, data).await
-    }
-
-    pub async fn delete_budget(&self, id: Uuid) -> Result<(), ApiError> {
-        self.delete("/budgets", id).await
-    }
-
     /// `POST /sync/push`.
     pub async fn sync_push(&self, req: &PushRequest) -> Result<PushResponse, ApiError> {
         self.json(self.http.post(self.url("/sync/push")).json(req))
@@ -320,7 +164,6 @@ impl Client {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use time::macros::date;
 
     #[test]
     fn maps_error_bodies() {
@@ -352,20 +195,6 @@ mod tests {
         assert_eq!(
             error_from(502, "Bad Gateway\n"),
             ApiError::Server(502, "Bad Gateway".into())
-        );
-    }
-
-    #[test]
-    fn builds_transaction_query() {
-        assert_eq!(transaction_query(&TransactionQuery::default()), "");
-        let q = TransactionQuery {
-            account_id: Some(Uuid::nil()),
-            from: Some(date!(2026 - 11 - 01)),
-            to: None,
-        };
-        assert_eq!(
-            transaction_query(&q),
-            "?account_id=00000000-0000-0000-0000-000000000000&from=2026-11-01"
         );
     }
 

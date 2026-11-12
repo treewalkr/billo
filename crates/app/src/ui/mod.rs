@@ -8,6 +8,7 @@ use uuid::Uuid;
 
 use crate::api::{self, ApiError, Client};
 use crate::storage::{self, Session};
+use crate::store::{Store, SyncMsg, use_store};
 use crate::strings::{self as s, Lang};
 
 mod account_form;
@@ -19,6 +20,7 @@ mod home;
 mod more;
 mod plans;
 mod signin;
+mod sync;
 mod transactions;
 
 const MAIN_CSS: Asset = asset!("/assets/main.css");
@@ -177,13 +179,29 @@ pub fn App() -> Element {
     use_context_provider(|| Auth(session));
     use_context_provider(|| Signal::new(Screen::Home));
     let signed_in = session.read().is_some();
-    // Check a saved session once at start-up; a 401 signs out.
     let auth = Auth(session);
-    use_resource(move || async move {
-        if auth.session().is_some() {
-            let _ = auth.call(|c| async move { c.me().await }).await;
+
+    // The local store: loaded once, then kept in step with the signed-in user.
+    let store = use_hook(|| {
+        let store = Store::create();
+        spawn(store.open());
+        store
+    });
+    use_context_provider(|| store);
+    sync::use_sync_engine(store, auth);
+    use_effect(move || {
+        if !store.ready() {
+            return;
+        }
+        match session.read().as_ref().map(|s| s.user_id) {
+            Some(user_id) => {
+                store.set_user(user_id);
+                store.send(SyncMsg::Now);
+            }
+            None => store.clear(),
         }
     });
+    let ready = store.ready();
     rsx! {
         document::Title { "{s::APP_NAME}" }
         document::Stylesheet { href: MAIN_CSS }
@@ -192,7 +210,10 @@ pub fn App() -> Element {
             div { key: "{l.code()}", class: "app", lang: l.code(),
                 Header {}
                 main {
-                    if signed_in {
+                    if signed_in && !ready {
+                        Loading {}
+                    } else if signed_in {
+                        sync::SyncNotices {}
                         Screens {}
                     } else {
                         signin::SignIn {}
@@ -262,14 +283,20 @@ fn Screens() -> Element {
 #[component]
 fn Header() -> Element {
     let auth = use_auth();
-    let health = use_resource(|| async { Client::new(api::BASE_URL, None).health().await });
+    let store = use_store();
+    // Checked again whenever the server becomes reachable or unreachable.
+    let unreachable = use_memo(move || store.info().unreachable);
+    let health = use_resource(move || async move {
+        let _ = unreachable();
+        Client::new(api::BASE_URL, None).health().await
+    });
     let version = match &*health.read() {
         None => "…".to_owned(),
         Some(Ok(h)) => format!("v{} ({})", h.version, h.build),
         Some(Err(_)) => s::offline().to_owned(),
     };
     let session = auth.session();
-    let sign_out = move |_| sign_out(auth);
+    let sign_out = move |_| sign_out(auth, store);
     rsx! {
         header {
             div { class: "brand",
@@ -278,6 +305,7 @@ fn Header() -> Element {
             }
             if let Some(session) = session {
                 div { class: "who",
+                    sync::SyncIndicator {}
                     span { id: "signed-in-as", title: "{s::signed_in_as()} {session.email}", "{session.email}" }
                     button { class: "link", id: "sign-out", onclick: sign_out, "{s::sign_out()}" }
                 }
@@ -286,9 +314,13 @@ fn Header() -> Element {
     }
 }
 
-/// Ends the session on the server (best effort) and forgets it locally.
-pub fn sign_out(auth: Auth) {
+/// Pushes waiting changes and ends the session on the server (both best effort), then
+/// forgets the session and the local data.
+pub fn sign_out(auth: Auth, store: Store) {
     spawn(async move {
+        if store.pending_now() > 0 {
+            let _ = store.sync(auth.client()).await;
+        }
         // The local session goes away even if the server is unreachable.
         let _ = auth.call(|c| async move { c.logout().await }).await;
         auth.forget();

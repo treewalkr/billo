@@ -1,13 +1,16 @@
-//! "More": categories, language, and the signed-in account.
+//! "More": categories, sync, language, and the signed-in account.
 
 use dioxus::prelude::*;
 
+use super::sync::SyncCard;
 use super::{LanguageSwitch, Screen, sign_out, use_auth, use_nav};
+use crate::store::use_store;
 use crate::strings as s;
 
 #[component]
 pub fn More() -> Element {
     let auth = use_auth();
+    let store = use_store();
     let mut nav = use_nav();
     let email = auth.session().map(|s| s.email).unwrap_or_default();
     rsx! {
@@ -25,6 +28,7 @@ pub fn More() -> Element {
                 }
             }
         }
+        SyncCard {}
         section { class: "card", id: "language",
             div { class: "card-head",
                 h3 { "{s::language()}" }
@@ -37,7 +41,7 @@ pub fn More() -> Element {
                     span { class: "sub", "{s::signed_in_as()}" }
                     span { class: "title", id: "more-email", "{email}" }
                 }
-                button { class: "secondary", id: "more-sign-out", onclick: move |_| sign_out(auth), "{s::sign_out()}" }
+                button { class: "secondary", id: "more-sign-out", onclick: move |_| sign_out(auth, store), "{s::sign_out()}" }
             }
         }
     }

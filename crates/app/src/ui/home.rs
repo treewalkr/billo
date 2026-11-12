@@ -4,17 +4,18 @@ use billo_api::TransactionQuery;
 use dioxus::prelude::*;
 
 use super::categories::StarterOffer;
-use super::{ErrorBox, Loading, Screen, use_auth, use_nav};
+use super::{ErrorBox, Loading, Screen, use_nav};
 use crate::api::ApiError;
 use crate::overview::{self, CardDue, Detail, Item, LoanDue, Status, ThisMonth};
+use crate::store::use_store;
 use crate::{clock, format, strings as s};
 
 #[component]
 pub fn Home() -> Element {
-    let auth = use_auth();
+    let store = use_store();
     let mut nav = use_nav();
     let mut data = use_resource(move || async move {
-        let (accounts, txns, plans) = auth
+        let (accounts, txns, plans) = store
             .call(|c| async move {
                 let accounts = c.accounts().await?;
                 let txns = c.transactions(&TransactionQuery::default()).await?;
@@ -67,7 +68,7 @@ pub fn Home() -> Element {
     // New users with no categories get the starter set offered once.
     let mut cats =
         use_resource(
-            move || async move { auth.call(|c| async move { c.categories().await }).await },
+            move || async move { store.call(|c| async move { c.categories().await }).await },
         );
     let mut dismissed = use_signal(|| false);
     let offer = !dismissed() && matches!(&*cats.read(), Some(Ok(list)) if list.is_empty());

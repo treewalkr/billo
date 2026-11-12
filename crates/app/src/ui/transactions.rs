@@ -8,10 +8,11 @@ use dioxus::prelude::*;
 
 use super::accounts::BackLink;
 use super::fields::{NumberField, SelectField, TextField};
-use super::{ErrorBox, Loading, Screen, use_auth, use_nav};
+use super::{ErrorBox, Loading, Screen, use_nav};
 use crate::forms::{
     NEW_CATEGORY, TransactionDraft, category_kind, is_card_like, key, transaction_kinds,
 };
+use crate::store::use_store;
 use crate::{api, categories, clock, format, strings as s};
 
 /// Kinds that add money to a cash account or reduce what's owed on a debt.
@@ -32,7 +33,7 @@ fn amount_text(m: &billo_api::Money) -> String {
 
 #[component]
 pub fn TransactionList(account: Record<AccountData>) -> Element {
-    let auth = use_auth();
+    let store = use_store();
     let mut nav = use_nav();
     let id = account.id;
     let mut txns = use_resource(move || async move {
@@ -40,7 +41,7 @@ pub fn TransactionList(account: Record<AccountData>) -> Element {
             account_id: Some(id),
             ..Default::default()
         };
-        let (txns, cats) = auth
+        let (txns, cats) = store
             .call(|c| async move {
                 let t = c.transactions(&q).await?;
                 let cats = c.categories().await?;
@@ -132,7 +133,7 @@ pub fn TransactionForm(
     account: Record<AccountData>,
     existing: Option<Record<TransactionData>>,
 ) -> Element {
-    let auth = use_auth();
+    let store = use_store();
     let mut nav = use_nav();
     let today = clock::today();
     let kind = account.data.kind;
@@ -146,13 +147,10 @@ pub fn TransactionForm(
     let mut confirm = use_signal(|| false);
     let categories =
         use_resource(
-            move || async move { auth.call(|c| async move { c.categories().await }).await },
+            move || async move { store.call(|c| async move { c.categories().await }).await },
         );
     let new_id = use_hook(api::new_id);
-    let (id, base_version) = match &existing {
-        Some(t) => (t.id, Some(t.version)),
-        None => (new_id, None),
-    };
+    let id = existing.as_ref().map_or(new_id, |t| t.id);
     let account_id = account.id;
     let currency = account.data.currency.clone();
 
@@ -178,7 +176,7 @@ pub fn TransactionForm(
         busy.set(true);
         let cat_kind = category_kind(kind, d.kind);
         spawn(async move {
-            let result = auth
+            let result = store
                 .call(|c| async move {
                     if let (Some(name), Some(cid)) = (new_cat, new_cat_id) {
                         let cat = CategoryData {
@@ -187,9 +185,9 @@ pub fn TransactionForm(
                             name_en: Some(name),
                             kind: cat_kind,
                         };
-                        c.put_category(cid, None, cat).await?;
+                        c.put_category(cid, cat).await?;
                     }
-                    c.put_transaction(id, base_version, data).await
+                    c.put_transaction(id, data).await
                 })
                 .await;
             match result {
@@ -206,7 +204,7 @@ pub fn TransactionForm(
             return;
         }
         spawn(async move {
-            match auth
+            match store
                 .call(|c| async move { c.delete_transaction(id).await })
                 .await
             {

@@ -130,6 +130,15 @@ table! {
     signed_in_as: "Signed in as", "เข้าสู่ระบบในชื่อ";
     server: "server", "เซิร์ฟเวอร์";
     offline: "offline", "ออฟไลน์";
+    offline_label: "Offline", "ออฟไลน์";
+    sync_title: "Sync", "การซิงค์";
+    sync_synced: "Synced", "ซิงค์แล้ว";
+    sync_syncing: "Syncing…", "กำลังซิงค์…";
+    sync_failed: "Couldn't sync", "ซิงค์ไม่สำเร็จ";
+    sync_now: "Sync now", "ซิงค์ตอนนี้";
+    conflict_notice: "Something you changed was also changed on another device. Your latest change was kept.", "รายการที่คุณแก้ไขถูกแก้ไขจากอุปกรณ์อื่นด้วย ระบบเก็บการแก้ไขล่าสุดของคุณไว้";
+    local_store_failed: "Billo couldn't open its storage on this device, so changes are kept only until you close the app.", "Billo เปิดพื้นที่จัดเก็บบนอุปกรณ์นี้ไม่ได้ การเปลี่ยนแปลงจะอยู่จนกว่าคุณจะปิดแอป";
+    dismiss: "OK", "ตกลง";
     retry: "Retry", "ลองอีกครั้ง";
     loading: "Loading…", "กำลังโหลด…";
     save: "Save", "บันทึก";
@@ -462,6 +471,22 @@ pub fn left_amount(amount: &str) -> String {
     match lang() {
         Lang::En => format!("{amount} left"),
         Lang::Th => format!("เหลือ {amount}"),
+    }
+}
+
+pub fn changes_waiting(n: usize) -> String {
+    match (lang(), n) {
+        (Lang::En, 1) => "1 change waiting".to_owned(),
+        (Lang::En, n) => format!("{n} changes waiting"),
+        (Lang::Th, n) => format!("รอซิงค์ {n} รายการ"),
+    }
+}
+
+pub fn rejected_notice(n: u32) -> String {
+    match (lang(), n) {
+        (Lang::En, 1) => "1 change couldn't be saved on the server and was undone.".to_owned(),
+        (Lang::En, n) => format!("{n} changes couldn't be saved on the server and were undone."),
+        (Lang::Th, n) => format!("บันทึกการเปลี่ยนแปลง {n} รายการบนเซิร์ฟเวอร์ไม่ได้ จึงยกเลิกแล้ว"),
     }
 }
 

@@ -5,8 +5,9 @@ use dioxus::prelude::*;
 
 use super::accounts::BackLink;
 use super::fields::{NumberField, TextField};
-use super::{ErrorBox, Loading, Screen, use_auth, use_nav};
+use super::{ErrorBox, Loading, Screen, use_nav};
 use crate::forms::PlanDraft;
+use crate::store::use_store;
 use crate::{api, clock, convert, format, strings as s};
 
 /// One line about a plan, or why it can't be read.
@@ -41,11 +42,11 @@ fn describe(p: &InstallmentPlanData) -> (String, String) {
 
 #[component]
 pub fn PlanList(account: Record<AccountData>) -> Element {
-    let auth = use_auth();
+    let store = use_store();
     let mut nav = use_nav();
     let card_id = account.id;
     let mut plans = use_resource(move || async move {
-        let all = auth
+        let all = store
             .call(|c| async move { c.installment_plans().await })
             .await?;
         Ok::<_, api::ApiError>(
@@ -103,7 +104,7 @@ pub fn PlanForm(
     account: Record<AccountData>,
     existing: Option<Record<InstallmentPlanData>>,
 ) -> Element {
-    let auth = use_auth();
+    let store = use_store();
     let mut nav = use_nav();
     let today = clock::today();
     let init = existing.clone();
@@ -115,10 +116,7 @@ pub fn PlanForm(
     let mut busy = use_signal(|| false);
     let mut confirm = use_signal(|| false);
     let new_id = use_hook(api::new_id);
-    let (id, base_version) = match &existing {
-        Some(p) => (p.id, Some(p.version)),
-        None => (new_id, None),
-    };
+    let id = existing.as_ref().map_or(new_id, |p| p.id);
     let card_id = account.id;
     let currency = account.data.currency.clone();
 
@@ -134,8 +132,8 @@ pub fn PlanForm(
         error.set(None);
         busy.set(true);
         spawn(async move {
-            match auth
-                .call(|c| async move { c.put_installment_plan(id, base_version, data).await })
+            match store
+                .call(|c| async move { c.put_installment_plan(id, data).await })
                 .await
             {
                 Ok(_) => nav.set(Screen::Account(card_id)),
@@ -150,7 +148,7 @@ pub fn PlanForm(
             return;
         }
         spawn(async move {
-            match auth
+            match store
                 .call(|c| async move { c.delete_installment_plan(id).await })
                 .await
             {

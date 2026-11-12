@@ -8,8 +8,9 @@ use uuid::Uuid;
 
 use super::plans::PlanList;
 use super::transactions::TransactionList;
-use super::{ErrorBox, Loading, Screen, use_auth, use_nav};
+use super::{ErrorBox, Loading, Screen, use_nav};
 use crate::forms::is_card_like;
+use crate::store::use_store;
 use crate::{format, strings as s};
 
 /// List order of the groups.
@@ -51,10 +52,12 @@ pub fn summary(d: &AccountData) -> String {
 
 #[component]
 pub fn Accounts() -> Element {
-    let auth = use_auth();
+    let store = use_store();
     let mut nav = use_nav();
     let mut accounts =
-        use_resource(move || async move { auth.call(|c| async move { c.accounts().await }).await });
+        use_resource(
+            move || async move { store.call(|c| async move { c.accounts().await }).await },
+        );
 
     let body = match &*accounts.read() {
         None => rsx! { Loading {} },
@@ -110,10 +113,10 @@ pub fn Accounts() -> Element {
 /// One account: its settings, with edit and delete.
 #[component]
 pub fn AccountPage(id: Uuid) -> Element {
-    let auth = use_auth();
+    let store = use_store();
     let mut account =
         use_resource(
-            move || async move { auth.call(|c| async move { c.account(id).await }).await },
+            move || async move { store.call(|c| async move { c.account(id).await }).await },
         );
 
     let record = match &*account.read() {
@@ -231,7 +234,7 @@ fn Settings(data: AccountData) -> Element {
 
 #[component]
 fn AccountActions(record: Record<AccountData>) -> Element {
-    let auth = use_auth();
+    let store = use_store();
     let mut nav = use_nav();
     let mut confirm = use_signal(|| false);
     let mut error = use_signal(|| None::<String>);
@@ -242,7 +245,7 @@ fn AccountActions(record: Record<AccountData>) -> Element {
             return;
         }
         spawn(async move {
-            match auth
+            match store
                 .call(|c| async move { c.delete_account(id).await })
                 .await
             {

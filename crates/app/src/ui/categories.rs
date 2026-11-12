@@ -6,20 +6,21 @@ use dioxus::prelude::*;
 
 use super::accounts::BackLink;
 use super::fields::{SelectField, TextField};
-use super::{ErrorBox, Loading, Screen, use_auth, use_nav};
+use super::{ErrorBox, Loading, Screen, use_nav};
 use crate::categories::{self, parent_options, starter_records, tree};
 use crate::forms::{CategoryDraft, from_key, key};
+use crate::store::use_store;
 use crate::{api, strings as s};
 
 const KINDS: [CategoryKind; 2] = [CategoryKind::Expense, CategoryKind::Income];
 
 #[component]
 pub fn Categories() -> Element {
-    let auth = use_auth();
+    let store = use_store();
     let mut nav = use_nav();
     let mut list =
         use_resource(
-            move || async move { auth.call(|c| async move { c.categories().await }).await },
+            move || async move { store.call(|c| async move { c.categories().await }).await },
         );
 
     let body = match &*list.read() {
@@ -79,18 +80,18 @@ pub fn Categories() -> Element {
 /// Offers the starter categories. Shown only while the user has none.
 #[component]
 pub fn StarterOffer(on_added: EventHandler<()>, on_dismiss: Option<EventHandler<()>>) -> Element {
-    let auth = use_auth();
+    let store = use_store();
     let mut busy = use_signal(|| false);
     let mut error = use_signal(|| None::<String>);
     let add = move |_| {
         busy.set(true);
         error.set(None);
         spawn(async move {
-            let result = auth
+            let result = store
                 .call(|c| async move {
                     // Parents come first, so children can point at them.
                     for (id, data) in starter_records(api::new_id) {
-                        c.put_category(id, None, data).await?;
+                        c.put_category(id, data).await?;
                     }
                     Ok(())
                 })
@@ -123,7 +124,7 @@ pub fn StarterOffer(on_added: EventHandler<()>, on_dismiss: Option<EventHandler<
 
 #[component]
 pub fn CategoryForm(existing: Option<Record<CategoryData>>) -> Element {
-    let auth = use_auth();
+    let store = use_store();
     let mut nav = use_nav();
     let init = existing.clone();
     let mut draft = use_signal(move || match &init {
@@ -135,13 +136,10 @@ pub fn CategoryForm(existing: Option<Record<CategoryData>>) -> Element {
     let mut confirm = use_signal(|| false);
     let all =
         use_resource(
-            move || async move { auth.call(|c| async move { c.categories().await }).await },
+            move || async move { store.call(|c| async move { c.categories().await }).await },
         );
     let new_id = use_hook(api::new_id);
-    let (id, base_version) = match &existing {
-        Some(c) => (c.id, Some(c.version)),
-        None => (new_id, None),
-    };
+    let id = existing.as_ref().map_or(new_id, |c| c.id);
     let this = existing.as_ref().map(|c| c.id);
 
     let submit = move |e: FormEvent| {
@@ -156,8 +154,8 @@ pub fn CategoryForm(existing: Option<Record<CategoryData>>) -> Element {
         error.set(None);
         busy.set(true);
         spawn(async move {
-            match auth
-                .call(|c| async move { c.put_category(id, base_version, data).await })
+            match store
+                .call(|c| async move { c.put_category(id, data).await })
                 .await
             {
                 Ok(_) => nav.set(Screen::Categories),
@@ -185,14 +183,14 @@ pub fn CategoryForm(existing: Option<Record<CategoryData>>) -> Element {
             })
             .unwrap_or_default();
         spawn(async move {
-            match auth
+            match store
                 .call(|c| async move {
                     for child in children {
                         let data = CategoryData {
                             parent_id: None,
                             ..child.data
                         };
-                        c.put_category(child.id, Some(child.version), data).await?;
+                        c.put_category(child.id, data).await?;
                     }
                     c.delete_category(id).await
                 })

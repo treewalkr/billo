@@ -120,6 +120,7 @@ impl LocalState {
         }
     }
 
+    #[cfg(test)]
     pub fn snapshot(&self) -> Snapshot {
         let mut records: Vec<_> = self.records.values().cloned().collect();
         records.sort_by_key(|r| (r.entity, r.id));
@@ -148,10 +149,6 @@ impl LocalState {
     /// Changes waiting to be pushed.
     pub fn pending(&self) -> usize {
         self.outbox.len()
-    }
-
-    pub fn outbox(&self) -> impl Iterator<Item = &Mutation> {
-        self.outbox.values()
     }
 
     fn has_pending(&self, entity: Entity, id: Uuid) -> bool {
@@ -194,6 +191,7 @@ impl LocalState {
             .and_then(|r| r.record.as_ref())
     }
 
+    #[cfg(test)]
     pub fn local_record(&self, entity: Entity, id: Uuid) -> Option<&LocalRecord> {
         self.records.get(&(entity, id))
     }
@@ -415,6 +413,7 @@ fn rfc3339(t: OffsetDateTime) -> Value {
 }
 
 /// Applies `ops` to a snapshot; what every backend does, in memory.
+#[cfg(test)]
 pub fn apply_ops(snapshot: &mut Snapshot, ops: &[PersistOp]) {
     for op in ops {
         match op {

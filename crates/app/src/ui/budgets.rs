@@ -7,9 +7,10 @@ use dioxus::prelude::*;
 use uuid::Uuid;
 
 use super::fields::NumberField;
-use super::{ErrorBox, Loading, Screen, use_auth, use_nav};
+use super::{ErrorBox, Loading, Screen, use_nav};
 use crate::budgets::{self, CURRENCY, Key};
 use crate::input::{field, parse_amount};
+use crate::store::use_store;
 use crate::{api, categories, clock, format, strings as s};
 
 /// One spending category on the screen.
@@ -36,7 +37,7 @@ struct Summary {
 
 #[component]
 pub fn Budgets() -> Element {
-    let auth = use_auth();
+    let store = use_store();
     let mut nav = use_nav();
     let today = clock::today();
     let mut shown = use_signal(|| (today.year(), today.month()));
@@ -44,7 +45,7 @@ pub fn Budgets() -> Element {
         let (year, month) = shown();
         let (first, last) =
             budgets::bounds(year, month).ok_or_else(|| s::cant_work_out_budget().to_owned())?;
-        let (accounts, cats, txns, list) = auth
+        let (accounts, cats, txns, list) = store
             .call(|c| async move {
                 let accounts = c.accounts().await?;
                 let cats = c.categories().await?;
@@ -208,17 +209,14 @@ fn group(rows: &[Row], with_budget: bool) -> Vec<Row> {
 
 #[component]
 fn BudgetRow(row: Row, first: time::Date, on_saved: EventHandler<()>) -> Element {
-    let auth = use_auth();
+    let store = use_store();
     let mut editing = use_signal(|| false);
     let mut text = use_signal(String::new);
     let mut error = use_signal(|| None::<String>);
     let mut busy = use_signal(|| false);
     let new_id = use_hook(api::new_id);
     let category_id = row.id;
-    let (id, base_version) = match &row.budget {
-        Some(b) => (b.id, Some(b.version)),
-        None => (new_id, None),
-    };
+    let id = row.budget.as_ref().map_or(new_id, |b| b.id);
     let current = row.budget.as_ref().map(|b| b.data.limit.minor);
 
     let save = move |e: FormEvent| {
@@ -240,8 +238,8 @@ fn BudgetRow(row: Row, first: time::Date, on_saved: EventHandler<()>) -> Element
         };
         busy.set(true);
         spawn(async move {
-            match auth
-                .call(|c| async move { c.put_budget(id, base_version, data).await })
+            match store
+                .call(|c| async move { c.put_budget(id, data).await })
                 .await
             {
                 Ok(_) => {
@@ -256,7 +254,7 @@ fn BudgetRow(row: Row, first: time::Date, on_saved: EventHandler<()>) -> Element
     let remove = move |_| {
         busy.set(true);
         spawn(async move {
-            match auth
+            match store
                 .call(|c| async move { c.delete_budget(id).await })
                 .await
             {

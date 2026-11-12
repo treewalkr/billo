@@ -234,6 +234,7 @@ impl Client {
         self.put("/categories", id, base_version, data).await
     }
 
+    #[allow(dead_code, reason = "for the budgets and categories screens (next)")]
     pub async fn delete_category(&self, id: Uuid) -> Result<(), ApiError> {
         self.delete("/categories", id).await
     }
@@ -277,6 +278,7 @@ impl Client {
         self.delete("/installment-plans", id).await
     }
 
+    #[allow(dead_code, reason = "for the budgets and categories screens (next)")]
     pub async fn budgets(&self, q: &BudgetQuery) -> Result<Vec<Record<BudgetData>>, ApiError> {
         let path = match q.period_month {
             Some(m) => format!("/budgets?period_month={m}"),
@@ -285,6 +287,7 @@ impl Client {
         self.list(&path).await
     }
 
+    #[allow(dead_code, reason = "for the budgets and categories screens (next)")]
     pub async fn put_budget(
         &self,
         id: Uuid,
@@ -294,6 +297,7 @@ impl Client {
         self.put("/budgets", id, base_version, data).await
     }
 
+    #[allow(dead_code, reason = "for the budgets and categories screens (next)")]
     pub async fn delete_budget(&self, id: Uuid) -> Result<(), ApiError> {
         self.delete("/budgets", id).await
     }

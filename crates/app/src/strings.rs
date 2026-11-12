@@ -234,3 +234,41 @@ pub const FIRST_POSTING_SHORT: &str = "from";
 pub const PER_MONTH: &str = "/month";
 pub const PER_MONTH_RATE: &str = "a month";
 pub const INVALID_PLAN: &str = "Can't read this plan";
+
+// This month
+pub const TODAY: &str = "Today:";
+pub const HOME_EMPTY: &str =
+    "Nothing here yet. Add your credit cards and loans to see what's due this month.";
+pub const NOTHING_DUE: &str = "Nothing due on your cards or loans.";
+pub const CANT_WORK_OUT: &str = "Can't work out what's due";
+pub const STATUS_NOTHING_DUE: &str = "Nothing due";
+pub const STATUS_PAID_IN_FULL: &str = "Paid in full";
+pub const STATUS_PAID: &str = "Paid";
+pub const STATUS_MINIMUM_PAID: &str = "Minimum paid";
+pub const STATUS_UNPAID: &str = "Unpaid";
+pub const STATUS_OVERDUE: &str = "Overdue";
+pub const STATUS_OPEN: &str = "Not cut yet";
+pub const NEXT_STATEMENT: &str = "Next statement";
+pub const STATEMENT_OF: &str = "Statement of";
+pub const OPENING_BALANCE: &str = "Opening balance";
+pub const NEW_CHARGES: &str = "New charges";
+pub const PAYMENTS_AND_CREDITS: &str = "Payments and refunds";
+pub const CLOSING_BALANCE: &str = "Closing balance";
+pub const MINIMUM_DUE: &str = "Minimum due";
+pub const BALANCE_SO_FAR: &str = "Balance so far";
+pub const MINIMUM_SO_FAR: &str = "Minimum so far";
+pub const PAID_SINCE_STATEMENT: &str = "Paid since statement";
+pub const OVERDUE_FROM_LAST: &str = "Overdue from last statement";
+pub const OPEN_NOTE: &str = "This statement isn't cut yet; amounts may still change.";
+pub const PAYMENT: &str = "Payment";
+pub const PRINCIPAL: &str = "Principal";
+pub const BALANCE_AFTER: &str = "Balance after";
+pub const PAID: &str = "Paid";
+
+pub fn includes_installments(amount: &str) -> String {
+    format!("Includes {amount} of installments, due in full.")
+}
+
+pub fn payment_n_of(n: usize, of: usize) -> String {
+    format!("Payment {n} of {of}")
+}

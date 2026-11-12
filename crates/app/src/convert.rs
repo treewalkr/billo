@@ -6,11 +6,11 @@
 
 use std::fmt;
 
-use billo_api::InstallmentPlanData;
 use billo_api::rules::{self, CardSettings, LoanSettings, RoundingSettings};
+use billo_api::{InstallmentPlanData, TransactionData, TransactionKind};
 use billo_domain::card::{
-    CardRules, CreditLine, CycleRules, DueRule, DueShift, InstallmentPlan, InterestRules,
-    InterestStart, MinPaymentRule, Remainder,
+    CardRules, CreditLine, CycleRules, DueRule, DueShift, Entry, EntryKind, InstallmentPlan,
+    InterestRules, InterestStart, MinPaymentRule, Remainder,
 };
 use billo_domain::{Currency, DayCount, LoanMethod, LoanTerms, Money, Rounding, RoundingMode};
 
@@ -118,6 +118,53 @@ pub fn installment_plan(p: &InstallmentPlanData) -> Result<InstallmentPlan, Inva
         remainder,
     )
     .map_err(|e| invalid("Installment plan", e))
+}
+
+/// A card transaction as a statement entry, in the card's `currency`.
+///
+/// - Purchases, fees and transfers out add to the balance; payments and refunds
+///   (`income`) reduce it. `interest_adjust` goes either way by its sign.
+/// - Transactions an installment plan posted return `None`: the plan's own portions
+///   are used instead, so they're never counted twice.
+/// - Without a posting date, the transaction date is used.
+pub fn card_entry(t: &TransactionData, currency: Currency) -> Result<Option<Entry>, Invalid> {
+    if t.installment_plan_id.is_some() {
+        return Ok(None);
+    }
+    let amount = money(&t.amount)?;
+    if amount.currency() != currency {
+        return Err(Invalid(format!(
+            "a transaction on {} is in {}, not the card's {}",
+            t.occurred_on,
+            amount.currency(),
+            currency
+        )));
+    }
+    let (kind, minor) = match t.kind {
+        TransactionKind::Expense | TransactionKind::Fee | TransactionKind::Transfer => {
+            (EntryKind::Charge, amount.minor())
+        }
+        TransactionKind::Payment | TransactionKind::Income => (EntryKind::Credit, amount.minor()),
+        TransactionKind::InterestAdjust if amount.is_negative() => {
+            let positive = amount
+                .checked_neg()
+                .map_err(|e| invalid("Interest adjustment", e))?;
+            (EntryKind::Credit, positive.minor())
+        }
+        TransactionKind::InterestAdjust => (EntryKind::Charge, amount.minor()),
+    };
+    if minor <= 0 {
+        return Err(Invalid(format!(
+            "a transaction on {} has a zero or negative amount",
+            t.occurred_on
+        )));
+    }
+    Ok(Some(Entry {
+        kind,
+        transaction_date: t.occurred_on,
+        posting_date: t.posted_on.unwrap_or(t.occurred_on),
+        amount: Money::new(minor, currency),
+    }))
 }
 
 pub fn loan_terms(s: &LoanSettings, currency: Currency) -> Result<LoanTerms, Invalid> {
@@ -254,6 +301,71 @@ pub(crate) mod tests {
         assert_eq!(p.schedule()[1].posting_date, date!(2026 - 11 - 15));
         assert!(installment_plan(&plan(1_200_000, 0, 0)).is_err());
         assert!(installment_plan(&plan(-1, 6, 0)).is_err());
+    }
+
+    pub fn txn(kind: TransactionKind, minor: i64, on: time::Date) -> TransactionData {
+        TransactionData {
+            account_id: uuid::Uuid::nil(),
+            category_id: None,
+            occurred_on: on,
+            posted_on: None,
+            amount: billo_api::Money::new(minor, "THB"),
+            orig_amount: None,
+            kind,
+            transfer_peer_id: None,
+            installment_plan_id: None,
+            note: None,
+        }
+    }
+
+    #[test]
+    fn card_entries_by_kind() {
+        let on = date!(2026 - 10 - 10);
+        let entry = |kind, minor| {
+            card_entry(&txn(kind, minor, on), Currency::Thb)
+                .unwrap()
+                .unwrap()
+        };
+        for k in [
+            TransactionKind::Expense,
+            TransactionKind::Fee,
+            TransactionKind::Transfer,
+            TransactionKind::InterestAdjust,
+        ] {
+            assert_eq!(entry(k, 100).kind, EntryKind::Charge, "{k:?}");
+        }
+        for k in [TransactionKind::Payment, TransactionKind::Income] {
+            assert_eq!(entry(k, 100).kind, EntryKind::Credit, "{k:?}");
+        }
+        let reversal = entry(TransactionKind::InterestAdjust, -250);
+        assert_eq!(reversal.kind, EntryKind::Credit);
+        assert_eq!(reversal.amount, Money::new(250, Currency::Thb));
+    }
+
+    #[test]
+    fn card_entry_dates() {
+        let mut t = txn(TransactionKind::Expense, 100, date!(2026 - 10 - 10));
+        let e = card_entry(&t, Currency::Thb).unwrap().unwrap();
+        assert_eq!(e.transaction_date, date!(2026 - 10 - 10));
+        assert_eq!(e.posting_date, date!(2026 - 10 - 10));
+        t.posted_on = Some(date!(2026 - 10 - 12));
+        let e = card_entry(&t, Currency::Thb).unwrap().unwrap();
+        assert_eq!(e.transaction_date, date!(2026 - 10 - 10));
+        assert_eq!(e.posting_date, date!(2026 - 10 - 12));
+    }
+
+    #[test]
+    fn card_entry_skips_plan_postings_and_rejects_bad_data() {
+        let mut t = txn(TransactionKind::Expense, 100, date!(2026 - 10 - 10));
+        t.installment_plan_id = Some(uuid::Uuid::nil());
+        assert_eq!(card_entry(&t, Currency::Thb), Ok(None));
+
+        let t = txn(TransactionKind::Expense, 100, date!(2026 - 10 - 10));
+        assert!(card_entry(&t, Currency::Usd).is_err());
+        let t = txn(TransactionKind::Expense, 0, date!(2026 - 10 - 10));
+        assert!(card_entry(&t, Currency::Thb).is_err());
+        let t = txn(TransactionKind::Payment, -5, date!(2026 - 10 - 10));
+        assert!(card_entry(&t, Currency::Thb).is_err());
     }
 
     #[test]

@@ -11,7 +11,10 @@ use crate::routes;
 
 use crate::error;
 use crate::resources::accounts::Accounts;
+use crate::resources::budgets::Budgets;
 use crate::resources::categories::Categories;
+use crate::resources::installment_plans::InstallmentPlans;
+use crate::resources::transactions::Transactions;
 use crate::routes::resources::routes as resource_routes;
 
 #[derive(Debug, Clone)]
@@ -37,7 +40,10 @@ pub fn router(state: AppState) -> Router {
         .route("/auth/logout", post(routes::auth::logout))
         .route("/me", get(routes::auth::me))
         .merge(resource_routes::<Accounts>("/accounts"))
-        .merge(resource_routes::<Categories>("/categories"));
+        .merge(resource_routes::<Categories>("/categories"))
+        .merge(resource_routes::<Transactions>("/transactions"))
+        .merge(resource_routes::<InstallmentPlans>("/installment-plans"))
+        .merge(resource_routes::<Budgets>("/budgets"));
     if state.dev_login {
         api = api.route("/auth/dev-login", post(routes::auth::dev_login));
     }

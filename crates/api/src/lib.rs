@@ -13,7 +13,10 @@ pub mod rules;
 pub use auth::{DevLoginRequest, LoginResponse, MeResponse};
 pub use error::{ErrorBody, ErrorCode, ErrorDetail};
 pub use records::{CONFLICT_HEADER, List, Money, Put, Record};
-pub use resources::{AccountData, AccountKind, CategoryData, CategoryKind};
+pub use resources::{
+    AccountData, AccountKind, BudgetData, BudgetQuery, CategoryData, CategoryKind,
+    InstallmentPlanData, Remainder, TransactionData, TransactionKind, TransactionQuery,
+};
 pub use rules::AccountRules;
 
 /// Body of `GET /api/v1/health`.

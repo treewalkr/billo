@@ -23,19 +23,19 @@ fn describe(p: &InstallmentPlanData) -> (String, String) {
                     "{} · {} {}",
                     format::money(principal),
                     p.months,
-                    s::MONTHS_SHORT
+                    s::months_short()
                 ),
                 format!(
                     "{portion}{} · {}% {} · {} {}",
-                    s::PER_MONTH,
+                    s::per_month(),
                     format::percent(p.monthly_rate_bp),
-                    s::PER_MONTH_RATE,
-                    s::FIRST_POSTING_SHORT,
+                    s::per_month_rate(),
+                    s::first_posting_short(),
                     format::date(p.first_post_on)
                 ),
             )
         }
-        (Err(e), _) | (_, Err(e)) => (s::INVALID_PLAN.to_owned(), e.to_string()),
+        (Err(e), _) | (_, Err(e)) => (s::invalid_plan().to_owned(), e.to_string()),
     }
 }
 
@@ -60,7 +60,7 @@ pub fn PlanList(account: Record<AccountData>) -> Element {
         Some(Err(e)) => rsx! {
             ErrorBox { message: e.to_string(), on_retry: move |_| plans.restart() }
         },
-        Some(Ok(list)) if list.is_empty() => rsx! { p { class: "empty", "{s::NO_PLANS}" } },
+        Some(Ok(list)) if list.is_empty() => rsx! { p { class: "empty", "{s::no_plans()}" } },
         Some(Ok(list)) => rsx! {
             ul { class: "list", id: "plans",
                 for p in list.clone() {
@@ -85,12 +85,12 @@ pub fn PlanList(account: Record<AccountData>) -> Element {
     rsx! {
         section { class: "card",
             div { class: "card-head",
-                h3 { "{s::INSTALLMENT_PLANS}" }
+                h3 { "{s::installment_plans()}" }
                 button {
                     class: "secondary",
                     id: "add-plan",
                     onclick: move |_| nav.set(Screen::PlanForm(Box::new(add_account.clone()), None)),
-                    "{s::ADD}"
+                    "{s::add()}"
                 }
             }
             {body}
@@ -162,9 +162,9 @@ pub fn PlanForm(
 
     let d = draft.read().clone();
     let title = if existing.is_some() {
-        s::EDIT_PLAN
+        s::edit_plan()
     } else {
-        s::ADD_PLAN
+        s::add_plan()
     };
     rsx! {
         BackLink { to: Screen::Account(card_id) }
@@ -173,7 +173,7 @@ pub fn PlanForm(
         form { class: "card", id: "plan-form", onsubmit: submit,
             NumberField {
                 id: "plan-principal",
-                label: s::PLAN_AMOUNT,
+                label: s::plan_amount(),
                 value: d.principal.clone(),
                 placeholder: "0.00",
                 oninput: move |v| draft.write().principal = v,
@@ -181,34 +181,34 @@ pub fn PlanForm(
             div { class: "pair",
                 NumberField {
                     id: "plan-months",
-                    label: s::MONTHS,
+                    label: s::months(),
                     value: d.months.clone(),
                     oninput: move |v| draft.write().months = v,
                 }
                 NumberField {
                     id: "plan-rate",
-                    label: s::MONTHLY_RATE,
+                    label: s::monthly_rate(),
                     value: d.monthly_rate.clone(),
-                    hint: s::MONTHLY_RATE_HINT.to_owned(),
+                    hint: s::monthly_rate_hint().to_owned(),
                     oninput: move |v| draft.write().monthly_rate = v,
                 }
             }
             TextField {
                 id: "plan-first",
-                label: s::FIRST_POSTING,
+                label: s::first_posting(),
                 input_type: "date",
                 value: d.first_post_on.clone(),
-                hint: s::FIRST_POSTING_HINT.to_owned(),
+                hint: s::first_posting_hint().to_owned(),
                 oninput: move |v| draft.write().first_post_on = v,
             }
             if let Some(msg) = error() {
                 ErrorBox { message: msg }
             }
-            button { r#type: "submit", id: "save-plan", disabled: busy(), "{s::SAVE}" }
+            button { r#type: "submit", id: "save-plan", disabled: busy(), "{s::save()}" }
             if existing.is_some() {
                 div { class: "actions",
                     button { r#type: "button", class: "danger", id: "delete-plan", onclick: delete,
-                        if confirm() { "{s::CONFIRM_DELETE}" } else { "{s::DELETE}" }
+                        if confirm() { "{s::confirm_delete()}" } else { "{s::delete()}" }
                     }
                 }
             }

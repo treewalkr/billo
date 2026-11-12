@@ -6,6 +6,8 @@ use std::fmt;
 use billo_domain::Currency;
 use time::{Date, Month};
 
+use crate::strings as s;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum InputError {
     Required,
@@ -20,14 +22,14 @@ pub enum InputError {
 impl fmt::Display for InputError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Required => f.write_str("required"),
-            Self::NotANumber => f.write_str("not a number"),
-            Self::TooManyDecimals(0) => f.write_str("whole numbers only"),
-            Self::TooManyDecimals(n) => write!(f, "at most {n} decimal places"),
-            Self::Negative => f.write_str("can't be negative"),
-            Self::TooLarge => f.write_str("too large"),
-            Self::OutOfRange { min, max } => write!(f, "must be {min} to {max}"),
-            Self::NotADate => f.write_str("not a valid date"),
+            Self::Required => f.write_str(s::required()),
+            Self::NotANumber => f.write_str(s::not_a_number()),
+            Self::TooManyDecimals(0) => f.write_str(s::whole_numbers_only()),
+            Self::TooManyDecimals(n) => f.write_str(&s::at_most_decimals(*n)),
+            Self::Negative => f.write_str(s::cant_be_negative()),
+            Self::TooLarge => f.write_str(s::too_large()),
+            Self::OutOfRange { min, max } => f.write_str(&s::between(*min, *max)),
+            Self::NotADate => f.write_str(s::not_a_date()),
         }
     }
 }

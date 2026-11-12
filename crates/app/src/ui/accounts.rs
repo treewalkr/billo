@@ -43,7 +43,7 @@ pub fn summary(d: &AccountData) -> String {
             amount(l.principal_minor, &d.currency),
             format::percent(l.annual_rate_bp),
             l.months,
-            s::MONTHS_SHORT
+            s::months_short()
         );
     }
     d.currency.clone()
@@ -62,7 +62,7 @@ pub fn Accounts() -> Element {
             ErrorBox { message: e.to_string(), on_retry: move |_| accounts.restart() }
         },
         Some(Ok(list)) if list.is_empty() => rsx! {
-            p { class: "empty", "{s::NO_ACCOUNTS}" }
+            p { class: "empty", "{s::no_accounts()}" }
         },
         Some(Ok(list)) => {
             let groups: Vec<(AccountKind, Vec<Record<AccountData>>)> = GROUPS
@@ -100,8 +100,8 @@ pub fn Accounts() -> Element {
 
     rsx! {
         div { class: "toolbar",
-            h2 { "{s::ACCOUNTS}" }
-            button { id: "add-account", onclick: move |_| nav.set(Screen::NewAccount(None)), "{s::ADD_ACCOUNT}" }
+            h2 { "{s::accounts()}" }
+            button { id: "add-account", onclick: move |_| nav.set(Screen::NewAccount(None)), "{s::add_account()}" }
         }
         {body}
     }
@@ -146,75 +146,75 @@ pub fn AccountPage(id: Uuid) -> Element {
 
 #[component]
 fn Settings(data: AccountData) -> Element {
-    let mut rows: Vec<(&'static str, String)> = vec![(s::CURRENCY, data.currency.clone())];
+    let mut rows: Vec<(&'static str, String)> = vec![(s::currency(), data.currency.clone())];
     if let Some(c) = &data.rules.card {
         let due = match c.due {
             DueRule::DaysAfterStatement(n) => s::due_days_after(n),
             DueRule::DayOfMonth(n) => s::due_on_day(n),
         };
         rows.extend([
-            (s::STATEMENT_DAY, c.statement_day.to_string()),
-            (s::DUE_DATE, due),
+            (s::statement_day(), c.statement_day.to_string()),
+            (s::due_date(), due),
             (
-                s::IF_NOT_BUSINESS_DAY,
+                s::if_not_business_day(),
                 s::due_shift_label(c.due_shift).to_owned(),
             ),
             (
-                s::MINIMUM_PAYMENT,
+                s::minimum_payment(),
                 format!(
                     "{}% {} {}",
                     format::percent(c.min_payment.percent_bp),
-                    s::OR_AT_LEAST,
+                    s::or_at_least(),
                     amount(c.min_payment.floor_minor, &data.currency)
                 ),
             ),
             (
-                s::INTEREST_RATE,
+                s::interest_rate(),
                 format!(
                     "{}% {}",
                     format::percent(c.interest.annual_rate_bp),
-                    s::PER_YEAR
+                    s::per_year()
                 ),
             ),
             (
-                s::DAY_COUNT,
+                s::day_count(),
                 s::day_count_label(c.interest.day_count).to_owned(),
             ),
             (
-                s::INTEREST_FROM,
+                s::interest_from(),
                 s::interest_start_label(c.interest.start).to_owned(),
             ),
             (
-                s::GRACE_PERIOD,
+                s::grace_period(),
                 if c.interest.grace_if_paid_in_full {
-                    s::YES
+                    s::yes()
                 } else {
-                    s::NO
+                    s::no()
                 }
                 .to_owned(),
             ),
         ]);
         if let Some(l) = c.credit_limit_minor {
-            rows.push((s::CREDIT_LIMIT, amount(l, &data.currency)));
+            rows.push((s::credit_limit(), amount(l, &data.currency)));
         }
     }
     if let Some(l) = &data.rules.loan {
         rows.extend([
             (
-                s::AMOUNT_BORROWED,
+                s::amount_borrowed(),
                 amount(l.principal_minor, &data.currency),
             ),
             (
-                s::INTEREST_RATE,
-                format!("{}% {}", format::percent(l.annual_rate_bp), s::PER_YEAR),
+                s::interest_rate(),
+                format!("{}% {}", format::percent(l.annual_rate_bp), s::per_year()),
             ),
-            (s::METHOD, s::loan_method_label(l.method).to_owned()),
-            (s::MONTHS, l.months.to_string()),
-            (s::START_DATE, format::date(l.start)),
-            (s::FIRST_PAYMENT, format::date(l.first_payment)),
+            (s::method(), s::loan_method_label(l.method).to_owned()),
+            (s::months(), l.months.to_string()),
+            (s::start_date(), format::date(l.start)),
+            (s::first_payment(), format::date(l.first_payment)),
         ]);
         if let Some(i) = l.installment_minor {
-            rows.push((s::STATED_INSTALLMENT, amount(i, &data.currency)));
+            rows.push((s::stated_installment(), amount(i, &data.currency)));
         }
     }
     rsx! {
@@ -260,10 +260,10 @@ fn AccountActions(record: Record<AccountData>) -> Element {
                 class: "secondary",
                 id: "edit-account",
                 onclick: move |_| nav.set(Screen::EditAccount(Box::new(record.clone()))),
-                "{s::EDIT}"
+                "{s::edit()}"
             }
             button { class: "danger", id: "delete-account", onclick: delete,
-                if confirm() { "{s::CONFIRM_DELETE}" } else { "{s::DELETE}" }
+                if confirm() { "{s::confirm_delete()}" } else { "{s::delete()}" }
             }
         }
     }
@@ -273,6 +273,6 @@ fn AccountActions(record: Record<AccountData>) -> Element {
 pub fn BackLink(to: Screen) -> Element {
     let mut nav = use_nav();
     rsx! {
-        button { class: "link back", onclick: move |_| nav.set(to.clone()), "‹ {s::BACK}" }
+        button { class: "link back", onclick: move |_| nav.set(to.clone()), "‹ {s::back()}" }
     }
 }

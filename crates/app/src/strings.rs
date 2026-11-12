@@ -1,337 +1,541 @@
-//! Every user-facing string, in one place so a Thai translation can be added later.
+//! Every user-facing string, in English and Thai.
+//!
+//! Plain strings live in one table: each entry has both languages, so a missing
+//! translation doesn't compile. Strings with values, and labels for API enums, are the
+//! functions further down; they `match` on both the value and the language.
+
+use std::sync::atomic::{AtomicU8, Ordering};
+
+use billo_api::rules::{DayCount, DueShift, InterestStart, LoanMethod};
+use billo_api::{AccountKind, CategoryKind, TransactionKind};
+use serde::{Deserialize, Serialize};
 
 pub const APP_NAME: &str = "Billo";
 
-// Sign in
-pub const SIGN_IN: &str = "Sign in";
-pub const SIGNING_IN: &str = "Signing in…";
-pub const SIGN_OUT: &str = "Sign out";
-pub const EMAIL: &str = "Email";
-pub const EMAIL_PLACEHOLDER: &str = "you@example.com";
-pub const DEV_SIGN_IN_NOTE: &str =
-    "Development sign-in: enter any email. Google sign-in comes later.";
-pub const DEV_LOGIN_OFF: &str = "This server doesn't allow development sign-in (DEV_LOGIN is off). Google sign-in isn't available yet.";
-pub const EMAIL_REQUIRED: &str = "Enter an email address.";
-pub const SIGNED_IN_AS: &str = "Signed in as";
+/// The UI language.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Lang {
+    En,
+    Th,
+}
 
-// Header
-pub const SERVER: &str = "server";
-pub const OFFLINE: &str = "offline";
+impl Lang {
+    pub const ALL: [Self; 2] = [Self::Th, Self::En];
 
-// Generic
-pub const RETRY: &str = "Retry";
-pub const LOADING: &str = "Loading…";
-pub const SAVE: &str = "Save";
-pub const EDIT: &str = "Edit";
-pub const DELETE: &str = "Delete";
-pub const CONFIRM_DELETE: &str = "Tap again to delete";
-pub const BACK: &str = "Back";
-pub const YES: &str = "Yes";
-pub const NO: &str = "No";
+    /// Thai for any `th…` locale (`th`, `th-TH`, `th_TH.UTF-8`), otherwise English.
+    pub fn from_locale(tag: &str) -> Self {
+        if tag.trim().to_ascii_lowercase().starts_with("th") {
+            Self::Th
+        } else {
+            Self::En
+        }
+    }
 
-// Tabs
-pub const THIS_MONTH: &str = "This month";
-pub const ACCOUNTS: &str = "Accounts";
+    /// The language's name in itself, for the switch.
+    pub const fn own_name(self) -> &'static str {
+        match self {
+            Self::En => "English",
+            Self::Th => "ไทย",
+        }
+    }
 
-// Accounts
-pub const ADD_ACCOUNT: &str = "Add account";
-pub const EDIT_ACCOUNT: &str = "Edit account";
-pub const NO_ACCOUNTS: &str =
-    "No accounts yet. Add your cards, loans and bank accounts to get started.";
-pub const NAME: &str = "Name";
-pub const CURRENCY: &str = "Currency";
-pub const EXAMPLE_VALUES: &str = "The values below are only examples. Change them to match your card's terms (see your statement or the bank's fee schedule).";
-pub const STATEMENT_AND_DUE: &str = "Statement and due date";
-pub const STATEMENT_DAY: &str = "Statement day";
-pub const STATEMENT_DAY_HINT: &str =
-    "Day of the month the statement is cut (1–31; 31 means the last day of the month).";
-pub const DUE_RULE: &str = "Payment due";
-pub const DUE_MODE_DAYS: &str = "Days after statement";
-pub const DUE_MODE_DAY: &str = "On a day of the month";
-pub const DAYS_AFTER_STATEMENT: &str = "Days after";
-pub const DUE_DAY_OF_MONTH: &str = "Day of month";
-pub const DAYS_AFTER_HINT: &str = "e.g. 20 means due 20 days after the statement date.";
-pub const DUE_DAY_HINT: &str = "The first time this day comes round after the statement date.";
-pub const DUE_DATE: &str = "Due date";
-pub const IF_NOT_BUSINESS_DAY: &str = "If due on a weekend";
-pub const MINIMUM_PAYMENT: &str = "Minimum payment";
-pub const MIN_PERCENT: &str = "Percent of balance (%)";
-pub const MIN_FLOOR: &str = "But at least";
-pub const MIN_HINT: &str = "Installment portions and any overdue minimum are always added in full.";
-pub const OR_AT_LEAST: &str = "or at least";
-pub const ROUND_TO: &str = "Round to";
-pub const ROUNDING: &str = "Rounding";
-pub const ROUND_NEAREST: &str = "Nearest";
-pub const ROUND_UP: &str = "Up";
-pub const ROUND_DOWN: &str = "Down";
-pub const INTEREST: &str = "Interest";
-pub const INTEREST_RATE: &str = "Interest rate";
-pub const INTEREST_RATE_YEAR: &str = "Interest rate (% a year)";
-pub const PER_YEAR: &str = "a year";
-pub const DAY_COUNT: &str = "Days in a year";
-pub const INTEREST_FROM: &str = "Interest counted from";
-pub const GRACE_PERIOD: &str = "Interest-free if paid in full";
-pub const GRACE_LABEL: &str =
-    "No interest on new purchases when the last statement was paid in full";
-pub const CREDIT_LIMIT: &str = "Credit limit";
-pub const CREDIT_LIMIT_OPTIONAL: &str = "Credit limit (optional)";
-pub const LOAN_TERMS: &str = "Loan terms";
-pub const AMOUNT_BORROWED: &str = "Amount borrowed";
-pub const MONTHS: &str = "Months";
-pub const MONTHS_SHORT: &str = "months";
-pub const START_DATE: &str = "Start date";
-pub const FIRST_PAYMENT: &str = "First payment";
-pub const METHOD: &str = "Interest method";
-pub const STATED_INSTALLMENT: &str = "Monthly installment";
-pub const STATED_INSTALLMENT_OPTIONAL: &str = "Monthly installment (optional)";
-pub const STATED_INSTALLMENT_HINT: &str =
-    "If your contract states the monthly amount, enter it; otherwise Billo works it out.";
+    /// `"en"` / `"th"`.
+    pub const fn code(self) -> &'static str {
+        match self {
+            Self::En => "en",
+            Self::Th => "th",
+        }
+    }
+}
 
-use billo_api::AccountKind;
-use billo_api::rules::{DayCount, DueShift, InterestStart, LoanMethod};
+/// The language as a number: 0 English, 1 Thai. Global in the app; per thread in
+/// tests, so tests that switch language don't affect each other.
+#[cfg(not(test))]
+static CURRENT: AtomicU8 = AtomicU8::new(0);
 
-pub const fn kind_label(k: AccountKind) -> &'static str {
+#[cfg(test)]
+thread_local! {
+    static CURRENT: AtomicU8 = const { AtomicU8::new(0) };
+}
+
+fn current() -> u8 {
+    #[cfg(not(test))]
+    return CURRENT.load(Ordering::Relaxed);
+    #[cfg(test)]
+    return CURRENT.with(|c| c.load(Ordering::Relaxed));
+}
+
+/// The language in use. English until [`set_lang`] is called.
+pub fn lang() -> Lang {
+    match current() {
+        1 => Lang::Th,
+        _ => Lang::En,
+    }
+}
+
+pub fn set_lang(l: Lang) {
+    let n = match l {
+        Lang::En => 0,
+        Lang::Th => 1,
+    };
+    #[cfg(not(test))]
+    CURRENT.store(n, Ordering::Relaxed);
+    #[cfg(test)]
+    CURRENT.with(|c| c.store(n, Ordering::Relaxed));
+}
+
+/// The current language's half of an `(English, Thai)` pair.
+fn pick<T>((en, th): (T, T)) -> T {
+    match lang() {
+        Lang::En => en,
+        Lang::Th => th,
+    }
+}
+
+macro_rules! table {
+    ($($name:ident: $en:literal, $th:literal;)*) => {
+        /// One plain string.
+        #[allow(non_camel_case_types)]
+        #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+        pub enum Key { $($name,)* }
+
+        impl Key {
+            #[cfg(test)]
+            pub const ALL: &[Self] = &[$(Self::$name,)*];
+        }
+
+        /// `(English, Thai)`. Exhaustive: every key has both.
+        pub const fn pair(key: Key) -> (&'static str, &'static str) {
+            match key { $(Key::$name => ($en, $th),)* }
+        }
+
+        $(
+            pub fn $name() -> &'static str {
+                pick(pair(Key::$name))
+            }
+        )*
+    };
+}
+
+table! {
+    sign_in: "Sign in", "เข้าสู่ระบบ";
+    signing_in: "Signing in…", "กำลังเข้าสู่ระบบ…";
+    sign_out: "Sign out", "ออกจากระบบ";
+    email: "Email", "อีเมล";
+    email_placeholder: "you@example.com", "you@example.com";
+    dev_sign_in_note: "Development sign-in: enter any email. Google sign-in comes later.", "เข้าสู่ระบบสำหรับนักพัฒนา: ใส่อีเมลใดก็ได้ ส่วนการเข้าสู่ระบบด้วย Google จะตามมาภายหลัง";
+    dev_login_off: "This server doesn't allow development sign-in (DEV_LOGIN is off). Google sign-in isn't available yet.", "เซิร์ฟเวอร์นี้ไม่เปิดให้เข้าสู่ระบบแบบนักพัฒนา (DEV_LOGIN ปิดอยู่) และยังใช้การเข้าสู่ระบบด้วย Google ไม่ได้";
+    email_required: "Enter an email address.", "กรุณากรอกอีเมล";
+    signed_in_as: "Signed in as", "เข้าสู่ระบบในชื่อ";
+    server: "server", "เซิร์ฟเวอร์";
+    offline: "offline", "ออฟไลน์";
+    retry: "Retry", "ลองอีกครั้ง";
+    loading: "Loading…", "กำลังโหลด…";
+    save: "Save", "บันทึก";
+    edit: "Edit", "แก้ไข";
+    delete: "Delete", "ลบ";
+    confirm_delete: "Tap again to delete", "แตะอีกครั้งเพื่อยืนยันการลบ";
+    back: "Back", "กลับ";
+    yes: "Yes", "ใช่";
+    no: "No", "ไม่";
+    this_month: "This month", "เดือนนี้";
+    accounts: "Accounts", "บัญชี";
+    add_account: "Add account", "เพิ่มบัญชี";
+    edit_account: "Edit account", "แก้ไขบัญชี";
+    no_accounts: "No accounts yet. Add your cards, loans and bank accounts to get started.", "ยังไม่มีบัญชี เริ่มต้นด้วยการเพิ่มบัตร สินเชื่อ และบัญชีธนาคารของคุณ";
+    name: "Name", "ชื่อ";
+    currency: "Currency", "สกุลเงิน";
+    example_values: "The values below are only examples. Change them to match your card's terms (see your statement or the bank's fee schedule).", "ค่าด้านล่างเป็นเพียงตัวอย่าง ปรับให้ตรงกับเงื่อนไขบัตรของคุณ (ดูได้จากใบแจ้งยอดหรือตารางค่าธรรมเนียมของธนาคาร)";
+    statement_and_due: "Statement and due date", "วันสรุปยอดและวันครบกำหนดชำระ";
+    statement_day: "Statement day", "วันสรุปยอด";
+    statement_day_hint: "Day of the month the statement is cut (1–31; 31 means the last day of the month).", "วันที่ของเดือนที่ตัดรอบบัญชี (1–31 โดย 31 หมายถึงวันสิ้นเดือน)";
+    due_rule: "Payment due", "กำหนดชำระ";
+    due_mode_days: "Days after statement", "นับจากวันสรุปยอด";
+    due_mode_day: "On a day of the month", "วันที่ประจำเดือน";
+    days_after_statement: "Days after", "จำนวนวันหลังสรุปยอด";
+    due_day_of_month: "Day of month", "วันที่ของเดือน";
+    days_after_hint: "e.g. 20 means due 20 days after the statement date.", "เช่น 20 หมายถึงครบกำหนดชำระ 20 วันหลังวันสรุปยอด";
+    due_day_hint: "The first time this day comes round after the statement date.", "ใช้วันที่นี้ครั้งแรกที่มาถึงหลังวันสรุปยอด";
+    due_date: "Due date", "วันครบกำหนดชำระ";
+    if_not_business_day: "If due on a weekend", "ถ้าครบกำหนดตรงวันหยุด";
+    minimum_payment: "Minimum payment", "ยอดชำระขั้นต่ำ";
+    min_percent: "Percent of balance (%)", "ร้อยละของยอดคงค้าง (%)";
+    min_floor: "But at least", "แต่ไม่น้อยกว่า";
+    min_hint: "Installment portions and any overdue minimum are always added in full.", "ยอดผ่อนรายเดือนและยอดขั้นต่ำที่ค้างจากรอบก่อนจะรวมเต็มจำนวนเสมอ";
+    or_at_least: "or at least", "หรืออย่างน้อย";
+    round_to: "Round to", "ปัดเศษทีละ";
+    rounding: "Rounding", "การปัดเศษ";
+    round_nearest: "Nearest", "ปัดใกล้สุด";
+    round_up: "Up", "ปัดขึ้น";
+    round_down: "Down", "ปัดลง";
+    interest: "Interest", "ดอกเบี้ย";
+    interest_rate: "Interest rate", "อัตราดอกเบี้ย";
+    interest_rate_year: "Interest rate (% a year)", "อัตราดอกเบี้ย (% ต่อปี)";
+    per_year: "a year", "ต่อปี";
+    day_count: "Days in a year", "จำนวนวันใน 1 ปี";
+    interest_from: "Interest counted from", "เริ่มคิดดอกเบี้ยจาก";
+    grace_period: "Interest-free if paid in full", "ปลอดดอกเบี้ยเมื่อชำระเต็มจำนวน";
+    grace_label: "No interest on new purchases when the last statement was paid in full", "ไม่คิดดอกเบี้ยรายการใช้จ่ายใหม่ ถ้าชำระยอดรอบก่อนเต็มจำนวน";
+    credit_limit: "Credit limit", "วงเงิน";
+    credit_limit_optional: "Credit limit (optional)", "วงเงิน (ไม่บังคับ)";
+    loan_terms: "Loan terms", "เงื่อนไขสินเชื่อ";
+    amount_borrowed: "Amount borrowed", "ยอดเงินกู้";
+    months: "Months", "จำนวนงวด (เดือน)";
+    months_short: "months", "เดือน";
+    start_date: "Start date", "วันเริ่มสัญญา";
+    first_payment: "First payment", "วันชำระงวดแรก";
+    method: "Interest method", "วิธีคิดดอกเบี้ย";
+    stated_installment: "Monthly installment", "ค่างวดรายเดือน";
+    stated_installment_optional: "Monthly installment (optional)", "ค่างวดรายเดือน (ไม่บังคับ)";
+    stated_installment_hint: "If your contract states the monthly amount, enter it; otherwise Billo works it out.", "ถ้าสัญญาระบุค่างวดไว้ ให้กรอกตามนั้น ถ้าไม่ระบุ Billo จะคำนวณให้";
+    transactions: "Transactions", "รายการ";
+    add: "Add", "เพิ่ม";
+    no_transactions: "No transactions yet.", "ยังไม่มีรายการ";
+    add_transaction: "Add transaction", "เพิ่มรายการ";
+    edit_transaction: "Edit transaction", "แก้ไขรายการ";
+    type_label: "Type", "ประเภท";
+    amount: "Amount", "จำนวนเงิน";
+    date: "Date", "วันที่ทำรายการ";
+    posting_date: "Posting date", "วันที่รายการเข้าบัตร";
+    posting_date_hint: "When the charge reached the card. Leave blank if it's the same day.", "วันที่ยอดเข้าบัตร เว้นว่างไว้ถ้าเป็นวันเดียวกัน";
+    posted: "posted", "เข้าบัตร";
+    category: "Category", "หมวดหมู่";
+    no_category: "No category", "ไม่ระบุหมวดหมู่";
+    new_category_option: "+ New category…", "+ หมวดหมู่ใหม่…";
+    new_category_name: "New category name", "ชื่อหมวดหมู่ใหม่";
+    note: "Note", "บันทึกช่วยจำ";
+    interest_adjust_hint: "Interest the bank charged that Billo didn't work out. Use a minus sign for a reversal.", "ดอกเบี้ยที่ธนาคารเรียกเก็บแต่ Billo ไม่ได้คำนวณไว้ ใส่เครื่องหมายลบถ้าเป็นการคืนดอกเบี้ย";
+    installment_plans: "Installment plans", "รายการผ่อนชำระ";
+    no_plans: "No installment plans.", "ไม่มีรายการผ่อนชำระ";
+    add_plan: "Add installment plan", "เพิ่มรายการผ่อน";
+    edit_plan: "Edit installment plan", "แก้ไขรายการผ่อน";
+    plan_amount: "Purchase amount", "ยอดซื้อ";
+    monthly_rate: "Monthly rate (%)", "ดอกเบี้ยต่อเดือน (%)";
+    monthly_rate_hint: "0 for 0% plans.", "ใส่ 0 สำหรับผ่อน 0%";
+    first_posting: "First posting date", "วันที่เรียกเก็บงวดแรก";
+    first_posting_hint: "When the first monthly portion appears on the card; the rest follow on the same day each month.", "วันที่ยอดผ่อนงวดแรกเข้าบัตร งวดถัดไปจะเรียกเก็บวันเดียวกันของทุกเดือน";
+    first_posting_short: "from", "เริ่ม";
+    per_month: "/month", "/เดือน";
+    per_month_rate: "a month", "ต่อเดือน";
+    invalid_plan: "Can't read this plan", "อ่านรายการผ่อนนี้ไม่ได้";
+    today: "Today:", "วันนี้:";
+    home_empty: "Nothing here yet. Add your credit cards and loans to see what's due this month.", "ยังไม่มีข้อมูล เพิ่มบัตรเครดิตและสินเชื่อเพื่อดูยอดที่ต้องชำระเดือนนี้";
+    nothing_due: "Nothing due on your cards or loans.", "ไม่มียอดที่ต้องชำระสำหรับบัตรหรือสินเชื่อ";
+    cant_work_out: "Can't work out what's due", "คำนวณยอดที่ต้องชำระไม่ได้";
+    status_nothing_due: "Nothing due", "ไม่มียอดชำระ";
+    status_paid_in_full: "Paid in full", "ชำระเต็มจำนวนแล้ว";
+    status_paid: "Paid", "ชำระแล้ว";
+    status_minimum_paid: "Minimum paid", "ชำระขั้นต่ำแล้ว";
+    status_unpaid: "Unpaid", "ยังไม่ชำระ";
+    status_overdue: "Overdue", "เกินกำหนดชำระ";
+    status_open: "Not cut yet", "ยังไม่สรุปยอด";
+    next_statement: "Next statement", "สรุปยอดครั้งถัดไป";
+    statement_of: "Statement of", "ใบแจ้งยอดวันที่";
+    opening_balance: "Opening balance", "ยอดยกมา";
+    new_charges: "New charges", "รายการใช้จ่ายใหม่";
+    payments_and_credits: "Payments and refunds", "ชำระเงินและเงินคืน";
+    closing_balance: "Closing balance", "ยอดคงเหลือ";
+    minimum_due: "Minimum due", "ยอดชำระขั้นต่ำ";
+    balance_so_far: "Balance so far", "ยอดคงเหลือถึงตอนนี้";
+    minimum_so_far: "Minimum so far", "ยอดขั้นต่ำถึงตอนนี้";
+    paid_since_statement: "Paid since statement", "ชำระแล้วหลังสรุปยอด";
+    overdue_from_last: "Overdue from last statement", "ยอดค้างชำระจากรอบก่อน";
+    open_note: "This statement isn't cut yet; amounts may still change.", "รอบนี้ยังไม่สรุปยอด ตัวเลขอาจเปลี่ยนแปลงได้";
+    payment: "Payment", "ค่างวด";
+    principal: "Principal", "เงินต้น";
+    balance_after: "Balance after", "ยอดคงเหลือหลังชำระ";
+    paid: "Paid", "ชำระแล้ว";
+    more: "More", "เพิ่มเติม";
+    categories: "Categories", "หมวดหมู่";
+    add_category: "Add category", "เพิ่มหมวดหมู่";
+    edit_category: "Edit category", "แก้ไขหมวดหมู่";
+    no_categories: "No categories yet.", "ยังไม่มีหมวดหมู่";
+    name_th: "Thai name", "ชื่อภาษาไทย";
+    name_en: "English name", "ชื่อภาษาอังกฤษ";
+    category_name_hint: "Fill in one or both; Billo shows the one for your language.", "กรอกชื่อใดชื่อหนึ่งหรือทั้งสองชื่อ Billo จะแสดงตามภาษาที่คุณเลือก";
+    category_name_required: "Enter a Thai or English name.", "กรุณากรอกชื่อภาษาไทยหรือภาษาอังกฤษ";
+    spending: "Spending", "รายจ่าย";
+    income: "Income", "รายรับ";
+    parent: "Inside", "อยู่ในหมวด";
+    no_parent: "Nothing (top level)", "ไม่มี (หมวดหลัก)";
+    category_delete_note: "Transactions in this category keep their amounts; they just lose the category.", "รายการในหมวดนี้ยังอยู่ครบ เพียงแต่จะไม่มีหมวดหมู่";
+    starter_title: "Start with common categories?", "เริ่มด้วยหมวดหมู่ยอดนิยมไหม?";
+    starter_body: "Food, transport, bills, salary and other everyday categories, in Thai and English. You can rename or delete any of them.", "อาหาร การเดินทาง ค่าน้ำค่าไฟ เงินเดือน และหมวดอื่น ๆ ที่ใช้ในชีวิตประจำวัน ทั้งภาษาไทยและอังกฤษ แก้ชื่อหรือลบได้ทุกหมวด";
+    add_starter: "Add starter categories", "เพิ่มหมวดหมู่เริ่มต้น";
+    adding: "Adding…", "กำลังเพิ่ม…";
+    not_now: "Not now", "ไว้ทีหลัง";
+    budgets: "Budgets", "งบประมาณ";
+    previous_month: "Previous month", "เดือนก่อน";
+    next_month: "Next month", "เดือนถัดไป";
+    budgeted: "Budgeted", "งบที่ตั้งไว้";
+    spent: "Spent", "ใช้ไป";
+    left: "Left", "คงเหลือ";
+    over_budget: "Over budget", "เกินงบ";
+    unbudgeted: "Spending without a budget", "รายจ่ายที่ไม่ได้ตั้งงบ";
+    set_limit: "Set limit", "ตั้งงบ";
+    monthly_limit: "Limit for this month", "งบของเดือนนี้";
+    remove_limit: "Remove limit", "ลบงบ";
+    cancel: "Cancel", "ยกเลิก";
+    not_budgeted: "No limit yet", "ยังไม่ได้ตั้งงบ";
+    budgets_need_categories: "Add spending categories first, then set a limit for each.", "เพิ่มหมวดหมู่รายจ่ายก่อน แล้วตั้งงบให้แต่ละหมวด";
+    budgets_note: "Purchases and fees count as spending; refunds reduce it. Amounts in baht only.", "รายการซื้อและค่าธรรมเนียมนับเป็นรายจ่าย ส่วนเงินคืนจะนำมาหักออก นับเฉพาะยอดเงินบาท";
+    cant_work_out_budget: "Can't work out this month's budget", "คำนวณงบเดือนนี้ไม่ได้";
+    language: "Language", "ภาษา";
+    err_network: "Can't reach the server", "เชื่อมต่อเซิร์ฟเวอร์ไม่ได้";
+    err_session_ended: "Your session has ended. Please sign in again.", "เซสชันหมดอายุแล้ว กรุณาเข้าสู่ระบบอีกครั้ง";
+    err_not_found: "Not found", "ไม่พบข้อมูล";
+    err_not_saved: "Not saved", "บันทึกไม่สำเร็จ";
+    err_conflict: "Conflict", "ข้อมูลขัดแย้งกัน";
+    err_server: "Server error", "เซิร์ฟเวอร์ขัดข้อง";
+    err_decode: "Unexpected response from the server", "เซิร์ฟเวอร์ตอบกลับในรูปแบบที่ไม่รองรับ";
+    required: "required", "จำเป็นต้องกรอก";
+    not_a_number: "not a number", "ไม่ใช่ตัวเลข";
+    whole_numbers_only: "whole numbers only", "ใส่ได้เฉพาะจำนวนเต็ม";
+    cant_be_negative: "can't be negative", "ติดลบไม่ได้";
+    too_large: "too large", "มากเกินไป";
+    not_a_date: "not a valid date", "วันที่ไม่ถูกต้อง";
+    more_than_zero: "must be more than zero", "ต้องมากกว่าศูนย์";
+    not_before_date: "can't be before the date", "ต้องไม่ก่อนวันที่ทำรายการ";
+    unknown: "unknown", "ไม่พบในระบบ";
+    min_amount: "Minimum amount", "ยอดขั้นต่ำอย่างน้อย";
+    min_rounding: "Minimum rounding", "การปัดเศษยอดขั้นต่ำ";
+    interest_rounding: "Interest rounding", "การปัดเศษดอกเบี้ย";
+}
+
+pub fn kind_label(k: AccountKind) -> &'static str {
+    pick(match k {
+        AccountKind::Cash => ("Cash", "เงินสด"),
+        AccountKind::Bank => ("Bank account", "บัญชีธนาคาร"),
+        AccountKind::Card => ("Credit card", "บัตรเครดิต"),
+        AccountKind::Revolving => ("Cash card / credit line", "บัตรกดเงินสด / วงเงินหมุนเวียน"),
+        AccountKind::Loan => ("Personal loan", "สินเชื่อส่วนบุคคล"),
+    })
+}
+
+pub fn kind_group(k: AccountKind) -> &'static str {
+    pick(match k {
+        AccountKind::Cash => ("Cash", "เงินสด"),
+        AccountKind::Bank => ("Bank accounts", "บัญชีธนาคาร"),
+        AccountKind::Card => ("Credit cards", "บัตรเครดิต"),
+        AccountKind::Revolving => ("Cash cards", "บัตรกดเงินสด"),
+        AccountKind::Loan => ("Loans", "สินเชื่อ"),
+    })
+}
+
+pub fn kind_hint(k: AccountKind) -> &'static str {
+    pick(match k {
+        AccountKind::Cash => ("Money in your wallet", "เงินในกระเป๋า"),
+        AccountKind::Bank => ("Savings or current account", "บัญชีออมทรัพย์หรือกระแสรายวัน"),
+        AccountKind::Card => (
+            "Monthly statements, minimum payments, installments",
+            "ใบแจ้งยอดรายเดือน ยอดชำระขั้นต่ำ และการผ่อนชำระ",
+        ),
+        AccountKind::Revolving => (
+            "A credit line that charges daily interest",
+            "วงเงินที่คิดดอกเบี้ยเป็นรายวัน",
+        ),
+        AccountKind::Loan => (
+            "Fixed monthly payments over a set term",
+            "ผ่อนชำระเท่ากันทุกเดือนตามระยะเวลาที่กำหนด",
+        ),
+    })
+}
+
+pub fn new_account_title(k: AccountKind) -> &'static str {
+    pick(match k {
+        AccountKind::Cash => ("New cash account", "เพิ่มบัญชีเงินสด"),
+        AccountKind::Bank => ("New bank account", "เพิ่มบัญชีธนาคาร"),
+        AccountKind::Card => ("New credit card", "เพิ่มบัตรเครดิต"),
+        AccountKind::Revolving => ("New cash card", "เพิ่มบัตรกดเงินสด"),
+        AccountKind::Loan => ("New loan", "เพิ่มสินเชื่อ"),
+    })
+}
+
+pub fn name_placeholder(k: AccountKind) -> &'static str {
+    pick(match k {
+        AccountKind::Cash => ("e.g. Wallet", "เช่น กระเป๋าสตางค์"),
+        AccountKind::Bank => ("e.g. Savings", "เช่น บัญชีออมทรัพย์"),
+        AccountKind::Card => ("e.g. Travel card", "เช่น บัตรเที่ยวต่างประเทศ"),
+        AccountKind::Revolving => ("e.g. Cash card", "เช่น บัตรกดเงินสด"),
+        AccountKind::Loan => ("e.g. Car repair loan", "เช่น สินเชื่อซ่อมรถ"),
+    })
+}
+
+pub fn due_shift_label(d: DueShift) -> &'static str {
+    pick(match d {
+        DueShift::Next => ("Move to next business day", "เลื่อนไปวันทำการถัดไป"),
+        DueShift::Previous => ("Move to previous business day", "เลื่อนมาวันทำการก่อนหน้า"),
+        DueShift::None => ("Keep the date", "ไม่เลื่อน"),
+    })
+}
+
+pub fn day_count_label(d: DayCount) -> &'static str {
+    pick(match d {
+        DayCount::Actual365 => ("365", "365"),
+        DayCount::ActualActual => ("365 or 366 (leap years)", "365 หรือ 366 (ปีอธิกสุรทิน)"),
+        DayCount::Actual360 => ("360", "360"),
+    })
+}
+
+pub fn interest_start_label(i: InterestStart) -> &'static str {
+    pick(match i {
+        InterestStart::TransactionDate => ("Purchase date", "วันที่ใช้จ่าย"),
+        InterestStart::PostingDate => ("Posting date", "วันที่รายการเข้าบัตร"),
+    })
+}
+
+pub fn loan_method_label(m: LoanMethod) -> &'static str {
+    pick(match m {
+        LoanMethod::Effective => ("Effective rate (reducing balance)", "ดอกเบี้ยแบบลดต้นลดดอก"),
+        LoanMethod::Flat => ("Flat rate", "ดอกเบี้ยคงที่ (Flat rate)"),
+    })
+}
+
+pub fn transaction_kind_label(account: AccountKind, k: TransactionKind) -> &'static str {
+    let card = matches!(account, AccountKind::Card | AccountKind::Revolving);
+    pick(match k {
+        TransactionKind::Expense if matches!(account, AccountKind::Revolving) => {
+            ("Withdrawal", "เบิกเงินสด")
+        }
+        TransactionKind::Expense if card => ("Purchase", "ใช้จ่าย"),
+        TransactionKind::Expense => ("Expense", "รายจ่าย"),
+        TransactionKind::Income if card => ("Refund", "คืนเงิน"),
+        TransactionKind::Income => ("Income", "รายรับ"),
+        TransactionKind::Payment => ("Payment", "ชำระเงิน"),
+        TransactionKind::Fee => ("Fee", "ค่าธรรมเนียม"),
+        TransactionKind::Transfer => ("Transfer", "โอนเงิน"),
+        TransactionKind::InterestAdjust => ("Interest charged", "ดอกเบี้ยที่ถูกเรียกเก็บ"),
+    })
+}
+
+pub fn category_kind_label(k: CategoryKind) -> &'static str {
     match k {
-        AccountKind::Cash => "Cash",
-        AccountKind::Bank => "Bank account",
-        AccountKind::Card => "Credit card",
-        AccountKind::Revolving => "Cash card / credit line",
-        AccountKind::Loan => "Personal loan",
-    }
-}
-
-pub const fn kind_group(k: AccountKind) -> &'static str {
-    match k {
-        AccountKind::Cash => "Cash",
-        AccountKind::Bank => "Bank accounts",
-        AccountKind::Card => "Credit cards",
-        AccountKind::Revolving => "Cash cards",
-        AccountKind::Loan => "Loans",
-    }
-}
-
-pub const fn kind_hint(k: AccountKind) -> &'static str {
-    match k {
-        AccountKind::Cash => "Money in your wallet",
-        AccountKind::Bank => "Savings or current account",
-        AccountKind::Card => "Monthly statements, minimum payments, installments",
-        AccountKind::Revolving => "A credit line that charges daily interest",
-        AccountKind::Loan => "Fixed monthly payments over a set term",
-    }
-}
-
-pub const fn new_account_title(k: AccountKind) -> &'static str {
-    match k {
-        AccountKind::Cash => "New cash account",
-        AccountKind::Bank => "New bank account",
-        AccountKind::Card => "New credit card",
-        AccountKind::Revolving => "New cash card",
-        AccountKind::Loan => "New loan",
-    }
-}
-
-pub const fn name_placeholder(k: AccountKind) -> &'static str {
-    match k {
-        AccountKind::Cash => "e.g. Wallet",
-        AccountKind::Bank => "e.g. Savings",
-        AccountKind::Card => "e.g. Travel card",
-        AccountKind::Revolving => "e.g. Cash card",
-        AccountKind::Loan => "e.g. Car repair loan",
-    }
-}
-
-pub const fn due_shift_label(d: DueShift) -> &'static str {
-    match d {
-        DueShift::Next => "Move to next business day",
-        DueShift::Previous => "Move to previous business day",
-        DueShift::None => "Keep the date",
-    }
-}
-
-pub const fn day_count_label(d: DayCount) -> &'static str {
-    match d {
-        DayCount::Actual365 => "365",
-        DayCount::ActualActual => "365 or 366 (leap years)",
-        DayCount::Actual360 => "360",
-    }
-}
-
-pub const fn interest_start_label(i: InterestStart) -> &'static str {
-    match i {
-        InterestStart::TransactionDate => "Purchase date",
-        InterestStart::PostingDate => "Posting date",
-    }
-}
-
-pub const fn loan_method_label(m: LoanMethod) -> &'static str {
-    match m {
-        LoanMethod::Effective => "Effective rate (reducing balance)",
-        LoanMethod::Flat => "Flat rate",
+        CategoryKind::Expense => spending(),
+        CategoryKind::Income => income(),
     }
 }
 
 pub fn statement_on_day(day: u8) -> String {
-    format!("Statement on day {day}")
+    match lang() {
+        Lang::En => format!("Statement on day {day}"),
+        Lang::Th => format!("สรุปยอดทุกวันที่ {day}"),
+    }
 }
 
 pub fn due_days_after(n: u16) -> String {
-    format!("due {n} days later")
+    match lang() {
+        Lang::En => format!("due {n} days later"),
+        Lang::Th => format!("ครบกำหนดชำระ {n} วันหลังสรุปยอด"),
+    }
 }
 
 pub fn due_on_day(day: u8) -> String {
-    format!("due on day {day}")
-}
-
-// Transactions
-pub const TRANSACTIONS: &str = "Transactions";
-pub const ADD: &str = "Add";
-pub const NO_TRANSACTIONS: &str = "No transactions yet.";
-pub const ADD_TRANSACTION: &str = "Add transaction";
-pub const EDIT_TRANSACTION: &str = "Edit transaction";
-pub const TYPE: &str = "Type";
-pub const AMOUNT: &str = "Amount";
-pub const DATE: &str = "Date";
-pub const POSTING_DATE: &str = "Posting date";
-pub const POSTING_DATE_HINT: &str =
-    "When the charge reached the card. Leave blank if it's the same day.";
-pub const POSTED: &str = "posted";
-pub const CATEGORY: &str = "Category";
-pub const NO_CATEGORY: &str = "No category";
-pub const NEW_CATEGORY_OPTION: &str = "+ New category…";
-pub const NEW_CATEGORY_NAME: &str = "New category name";
-pub const NOTE: &str = "Note";
-pub const INTEREST_ADJUST_HINT: &str =
-    "Interest the bank charged that Billo didn't work out. Use a minus sign for a reversal.";
-
-use billo_api::TransactionKind;
-
-pub const fn transaction_kind_label(account: AccountKind, k: TransactionKind) -> &'static str {
-    let card = matches!(account, AccountKind::Card | AccountKind::Revolving);
-    match k {
-        TransactionKind::Expense if matches!(account, AccountKind::Revolving) => "Withdrawal",
-        TransactionKind::Expense if card => "Purchase",
-        TransactionKind::Expense => "Expense",
-        TransactionKind::Income if card => "Refund",
-        TransactionKind::Income => "Income",
-        TransactionKind::Payment => "Payment",
-        TransactionKind::Fee => "Fee",
-        TransactionKind::Transfer => "Transfer",
-        TransactionKind::InterestAdjust => "Interest charged",
+    match lang() {
+        Lang::En => format!("due on day {day}"),
+        Lang::Th => format!("ครบกำหนดชำระวันที่ {day}"),
     }
 }
 
-// Installment plans
-pub const INSTALLMENT_PLANS: &str = "Installment plans";
-pub const NO_PLANS: &str = "No installment plans.";
-pub const ADD_PLAN: &str = "Add installment plan";
-pub const EDIT_PLAN: &str = "Edit installment plan";
-pub const PLAN_AMOUNT: &str = "Purchase amount";
-pub const MONTHLY_RATE: &str = "Monthly rate (%)";
-pub const MONTHLY_RATE_HINT: &str = "0 for 0% plans.";
-pub const FIRST_POSTING: &str = "First posting date";
-pub const FIRST_POSTING_HINT: &str = "When the first monthly portion appears on the card; the rest follow on the same day each month.";
-pub const FIRST_POSTING_SHORT: &str = "from";
-pub const PER_MONTH: &str = "/month";
-pub const PER_MONTH_RATE: &str = "a month";
-pub const INVALID_PLAN: &str = "Can't read this plan";
-
-// This month
-pub const TODAY: &str = "Today:";
-pub const HOME_EMPTY: &str =
-    "Nothing here yet. Add your credit cards and loans to see what's due this month.";
-pub const NOTHING_DUE: &str = "Nothing due on your cards or loans.";
-pub const CANT_WORK_OUT: &str = "Can't work out what's due";
-pub const STATUS_NOTHING_DUE: &str = "Nothing due";
-pub const STATUS_PAID_IN_FULL: &str = "Paid in full";
-pub const STATUS_PAID: &str = "Paid";
-pub const STATUS_MINIMUM_PAID: &str = "Minimum paid";
-pub const STATUS_UNPAID: &str = "Unpaid";
-pub const STATUS_OVERDUE: &str = "Overdue";
-pub const STATUS_OPEN: &str = "Not cut yet";
-pub const NEXT_STATEMENT: &str = "Next statement";
-pub const STATEMENT_OF: &str = "Statement of";
-pub const OPENING_BALANCE: &str = "Opening balance";
-pub const NEW_CHARGES: &str = "New charges";
-pub const PAYMENTS_AND_CREDITS: &str = "Payments and refunds";
-pub const CLOSING_BALANCE: &str = "Closing balance";
-pub const MINIMUM_DUE: &str = "Minimum due";
-pub const BALANCE_SO_FAR: &str = "Balance so far";
-pub const MINIMUM_SO_FAR: &str = "Minimum so far";
-pub const PAID_SINCE_STATEMENT: &str = "Paid since statement";
-pub const OVERDUE_FROM_LAST: &str = "Overdue from last statement";
-pub const OPEN_NOTE: &str = "This statement isn't cut yet; amounts may still change.";
-pub const PAYMENT: &str = "Payment";
-pub const PRINCIPAL: &str = "Principal";
-pub const BALANCE_AFTER: &str = "Balance after";
-pub const PAID: &str = "Paid";
-
 pub fn includes_installments(amount: &str) -> String {
-    format!("Includes {amount} of installments, due in full.")
+    match lang() {
+        Lang::En => format!("Includes {amount} of installments, due in full."),
+        Lang::Th => format!("รวมยอดผ่อนชำระ {amount} ซึ่งต้องชำระเต็มจำนวน"),
+    }
 }
 
 pub fn payment_n_of(n: usize, of: usize) -> String {
-    format!("Payment {n} of {of}")
-}
-
-// Categories
-pub const MORE: &str = "More";
-pub const CATEGORIES: &str = "Categories";
-pub const ADD_CATEGORY: &str = "Add category";
-pub const EDIT_CATEGORY: &str = "Edit category";
-pub const NO_CATEGORIES: &str = "No categories yet.";
-pub const NAME_TH: &str = "Thai name";
-pub const NAME_EN: &str = "English name";
-pub const CATEGORY_NAME_HINT: &str = "Fill in one or both; Billo shows the one for your language.";
-pub const CATEGORY_NAME_REQUIRED: &str = "Enter a Thai or English name.";
-pub const SPENDING: &str = "Spending";
-pub const INCOME: &str = "Income";
-pub const PARENT: &str = "Inside";
-pub const NO_PARENT: &str = "Nothing (top level)";
-pub const CATEGORY_DELETE_NOTE: &str =
-    "Transactions in this category keep their amounts; they just lose the category.";
-pub const STARTER_TITLE: &str = "Start with common categories?";
-pub const STARTER_BODY: &str = "Food, transport, bills, salary and other everyday categories, in Thai and English. You can rename or delete any of them.";
-pub const ADD_STARTER: &str = "Add starter categories";
-pub const ADDING: &str = "Adding…";
-pub const NOT_NOW: &str = "Not now";
-
-use billo_api::CategoryKind;
-
-pub const fn category_kind_label(k: CategoryKind) -> &'static str {
-    match k {
-        CategoryKind::Expense => SPENDING,
-        CategoryKind::Income => INCOME,
+    match lang() {
+        Lang::En => format!("Payment {n} of {of}"),
+        Lang::Th => format!("งวดที่ {n} จาก {of}"),
     }
 }
 
-// Budgets
-pub const BUDGETS: &str = "Budgets";
-pub const PREVIOUS_MONTH: &str = "Previous month";
-pub const NEXT_MONTH: &str = "Next month";
-pub const BUDGETED: &str = "Budgeted";
-pub const SPENT: &str = "Spent";
-pub const LEFT: &str = "Left";
-pub const OVER_BUDGET: &str = "Over budget";
-pub const UNBUDGETED: &str = "Spending without a budget";
-pub const SET_LIMIT: &str = "Set limit";
-pub const MONTHLY_LIMIT: &str = "Limit for this month";
-pub const REMOVE_LIMIT: &str = "Remove limit";
-pub const CANCEL: &str = "Cancel";
-pub const NOT_BUDGETED: &str = "No limit yet";
-pub const BUDGETS_NEED_CATEGORIES: &str =
-    "Add spending categories first, then set a limit for each.";
-pub const BUDGETS_NOTE: &str =
-    "Purchases and fees count as spending; refunds reduce it. Amounts in baht only.";
-pub const CANT_WORK_OUT_BUDGET: &str = "Can't work out this month's budget";
-
 pub fn spent_of(spent: &str, limit: &str) -> String {
-    format!("{spent} of {limit}")
+    match lang() {
+        Lang::En => format!("{spent} of {limit}"),
+        Lang::Th => format!("{spent} จาก {limit}"),
+    }
 }
 
 pub fn left_amount(amount: &str) -> String {
-    format!("{amount} left")
+    match lang() {
+        Lang::En => format!("{amount} left"),
+        Lang::Th => format!("เหลือ {amount}"),
+    }
 }
 
 pub fn over_by(amount: &str) -> String {
-    format!("{amount} over")
+    match lang() {
+        Lang::En => format!("{amount} over"),
+        Lang::Th => format!("เกิน {amount}"),
+    }
+}
+
+pub fn at_most_decimals(n: u32) -> String {
+    match lang() {
+        Lang::En => format!("at most {n} decimal places"),
+        Lang::Th => format!("ทศนิยมได้ไม่เกิน {n} ตำแหน่ง"),
+    }
+}
+
+pub fn between(min: i64, max: i64) -> String {
+    match lang() {
+        Lang::En => format!("must be {min} to {max}"),
+        Lang::Th => format!("ต้องอยู่ระหว่าง {min} ถึง {max}"),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn has_thai(s: &str) -> bool {
+        s.chars().any(|c| ('\u{0E00}'..='\u{0E7F}').contains(&c))
+    }
+
+    /// Strings that are the same in both languages on purpose.
+    const SAME_IN_BOTH: &[Key] = &[Key::email_placeholder];
+
+    #[test]
+    fn every_key_has_english_and_thai() {
+        for &k in Key::ALL {
+            let (en, th) = pair(k);
+            assert!(!en.trim().is_empty(), "{k:?}: English missing");
+            assert!(!th.trim().is_empty(), "{k:?}: Thai missing");
+            assert!(!has_thai(en), "{k:?}: Thai in the English text");
+            if !SAME_IN_BOTH.contains(&k) {
+                assert!(has_thai(th), "{k:?}: Thai text isn't Thai: {th}");
+            }
+        }
+    }
+
+    #[test]
+    fn switching_language_switches_text() {
+        set_lang(Lang::Th);
+        assert_eq!(this_month(), "เดือนนี้");
+        assert_eq!(kind_label(AccountKind::Card), "บัตรเครดิต");
+        assert_eq!(payment_n_of(2, 12), "งวดที่ 2 จาก 12");
+        set_lang(Lang::En);
+        assert_eq!(this_month(), "This month");
+        assert_eq!(payment_n_of(2, 12), "Payment 2 of 12");
+    }
+
+    #[test]
+    fn locale_detection() {
+        assert_eq!(Lang::from_locale("th-TH"), Lang::Th);
+        assert_eq!(Lang::from_locale("TH"), Lang::Th);
+        assert_eq!(Lang::from_locale("th_TH.UTF-8"), Lang::Th);
+        assert_eq!(Lang::from_locale("en-US"), Lang::En);
+        assert_eq!(Lang::from_locale(""), Lang::En);
+    }
+
+    #[test]
+    fn language_codes_round_trip() {
+        for l in Lang::ALL {
+            let json = serde_json::to_string(&l).unwrap();
+            assert_eq!(json, format!("\"{}\"", l.code()));
+            assert_eq!(serde_json::from_str::<Lang>(&json).unwrap(), l);
+        }
+    }
 }

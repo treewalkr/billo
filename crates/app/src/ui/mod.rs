@@ -8,7 +8,7 @@ use uuid::Uuid;
 
 use crate::api::{self, ApiError, Client};
 use crate::storage::{self, Session};
-use crate::strings as s;
+use crate::strings::{self as s, Lang};
 
 mod account_form;
 mod accounts;
@@ -143,8 +143,36 @@ pub fn use_nav() -> Signal<Screen> {
     use_context::<Signal<Screen>>()
 }
 
+/// The UI language, shared through context. Changing it re-creates the screens so
+/// every string is drawn again.
+#[derive(Clone, Copy)]
+pub struct Language(Signal<Lang>);
+
+impl Language {
+    pub fn get(&self) -> Lang {
+        *self.0.read()
+    }
+
+    pub fn set(mut self, lang: Lang) {
+        s::set_lang(lang);
+        storage::save_lang(lang);
+        self.0.set(lang);
+    }
+}
+
+pub fn use_language() -> Language {
+    use_context::<Language>()
+}
+
 #[component]
 pub fn App() -> Element {
+    let language = use_signal(|| {
+        let lang = storage::load_lang();
+        s::set_lang(lang);
+        lang
+    });
+    use_context_provider(|| Language(language));
+    let lang = language();
     let session = use_signal(storage::load);
     use_context_provider(|| Auth(session));
     use_context_provider(|| Signal::new(Screen::Home));
@@ -159,12 +187,17 @@ pub fn App() -> Element {
     rsx! {
         document::Title { "{s::APP_NAME}" }
         document::Stylesheet { href: MAIN_CSS }
-        Header {}
-        main {
-            if signed_in {
-                Screens {}
-            } else {
-                signin::SignIn {}
+        // Keyed by language: switching re-creates everything below in the new language.
+        for l in [lang] {
+            div { key: "{l.code()}", class: "app", lang: l.code(),
+                Header {}
+                main {
+                    if signed_in {
+                        Screens {}
+                    } else {
+                        signin::SignIn {}
+                    }
+                }
             }
         }
     }
@@ -202,25 +235,25 @@ fn Screens() -> Element {
                 id: "tab-home",
                 class: if tab == Tab::Home { "active" } else { "" },
                 onclick: move |_| nav.set(Screen::Home),
-                "{s::THIS_MONTH}"
+                "{s::this_month()}"
             }
             button {
                 id: "tab-accounts",
                 class: if tab == Tab::Accounts { "active" } else { "" },
                 onclick: move |_| nav.set(Screen::Accounts),
-                "{s::ACCOUNTS}"
+                "{s::accounts()}"
             }
             button {
                 id: "tab-budgets",
                 class: if tab == Tab::Budgets { "active" } else { "" },
                 onclick: move |_| nav.set(Screen::Budgets),
-                "{s::BUDGETS}"
+                "{s::budgets()}"
             }
             button {
                 id: "tab-more",
                 class: if tab == Tab::More { "active" } else { "" },
                 onclick: move |_| nav.set(Screen::More),
-                "{s::MORE}"
+                "{s::more()}"
             }
         }
     }
@@ -233,7 +266,7 @@ fn Header() -> Element {
     let version = match &*health.read() {
         None => "…".to_owned(),
         Some(Ok(h)) => format!("v{} ({})", h.version, h.build),
-        Some(Err(_)) => s::OFFLINE.to_owned(),
+        Some(Err(_)) => s::offline().to_owned(),
     };
     let session = auth.session();
     let sign_out = move |_| sign_out(auth);
@@ -241,12 +274,12 @@ fn Header() -> Element {
         header {
             div { class: "brand",
                 h1 { "{s::APP_NAME}" }
-                span { class: "server", id: "server-version", title: api::BASE_URL, "{s::SERVER} {version}" }
+                span { class: "server", id: "server-version", title: api::BASE_URL, "{s::server()} {version}" }
             }
             if let Some(session) = session {
                 div { class: "who",
-                    span { id: "signed-in-as", title: "{s::SIGNED_IN_AS} {session.email}", "{session.email}" }
-                    button { class: "link", id: "sign-out", onclick: sign_out, "{s::SIGN_OUT}" }
+                    span { id: "signed-in-as", title: "{s::signed_in_as()} {session.email}", "{session.email}" }
+                    button { class: "link", id: "sign-out", onclick: sign_out, "{s::sign_out()}" }
                 }
             }
         }
@@ -262,6 +295,26 @@ pub fn sign_out(auth: Auth) {
     });
 }
 
+/// Thai / English buttons.
+#[component]
+pub fn LanguageSwitch() -> Element {
+    let language = use_language();
+    let current = language.get();
+    rsx! {
+        div { class: "lang-switch", role: "group", "aria-label": s::language(),
+            for l in Lang::ALL {
+                button {
+                    id: "lang-{l.code()}",
+                    class: if l == current { "active" } else { "" },
+                    "aria-pressed": l == current,
+                    onclick: move |_| language.set(l),
+                    "{l.own_name()}"
+                }
+            }
+        }
+    }
+}
+
 /// An error message with an optional retry button.
 #[component]
 pub fn ErrorBox(message: String, on_retry: Option<EventHandler<()>>) -> Element {
@@ -269,7 +322,7 @@ pub fn ErrorBox(message: String, on_retry: Option<EventHandler<()>>) -> Element 
         div { class: "error-box", role: "alert",
             p { "{message}" }
             if let Some(retry) = on_retry {
-                button { class: "secondary", onclick: move |_| retry.call(()), "{s::RETRY}" }
+                button { class: "secondary", onclick: move |_| retry.call(()), "{s::retry()}" }
             }
         }
     }
@@ -277,5 +330,5 @@ pub fn ErrorBox(message: String, on_retry: Option<EventHandler<()>>) -> Element 
 
 #[component]
 pub fn Loading() -> Element {
-    rsx! { p { class: "loading", "{s::LOADING}" } }
+    rsx! { p { class: "loading", "{s::loading()}" } }
 }

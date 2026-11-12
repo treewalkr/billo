@@ -24,7 +24,7 @@ pub fn PickKind() -> Element {
     let mut nav = use_nav();
     rsx! {
         BackLink { to: Screen::Accounts }
-        h2 { "{s::ADD_ACCOUNT}" }
+        h2 { "{s::add_account()}" }
         section { class: "card",
             ul { class: "list",
                 for k in KINDS {
@@ -60,9 +60,9 @@ fn rounding_steps() -> Vec<(String, String)> {
 
 fn rounding_modes() -> Vec<(String, String)> {
     options(&[
-        (RoundingMode::HalfUp, s::ROUND_NEAREST),
-        (RoundingMode::Up, s::ROUND_UP),
-        (RoundingMode::Down, s::ROUND_DOWN),
+        (RoundingMode::HalfUp, s::round_nearest()),
+        (RoundingMode::Up, s::round_up()),
+        (RoundingMode::Down, s::round_down()),
     ])
 }
 
@@ -126,7 +126,7 @@ pub fn AccountForm(kind: AccountKind, existing: Option<Record<AccountData>>) -> 
 
     let d = draft.read().clone();
     let title = if existing.is_some() {
-        s::EDIT_ACCOUNT
+        s::edit_account()
     } else {
         s::new_account_title(kind)
     };
@@ -141,14 +141,14 @@ pub fn AccountForm(kind: AccountKind, existing: Option<Record<AccountData>>) -> 
         form { class: "card", id: "account-form", onsubmit: submit,
             TextField {
                 id: "name",
-                label: s::NAME,
+                label: s::name(),
                 value: d.name.clone(),
                 placeholder: s::name_placeholder(d.kind),
                 oninput: move |v| draft.write().name = v,
             }
             SelectField {
                 id: "currency",
-                label: s::CURRENCY,
+                label: s::currency(),
                 value: d.currency.clone(),
                 options: currencies,
                 onchange: move |v| draft.write().currency = v,
@@ -162,7 +162,7 @@ pub fn AccountForm(kind: AccountKind, existing: Option<Record<AccountData>>) -> 
             if let Some(msg) = error() {
                 ErrorBox { message: msg }
             }
-            button { r#type: "submit", id: "save-account", disabled: busy(), "{s::SAVE}" }
+            button { r#type: "submit", id: "save-account", disabled: busy(), "{s::save()}" }
         }
     }
 }
@@ -176,28 +176,28 @@ fn CardFields(draft: Signal<AccountDraft>) -> Element {
         "day"
     };
     let (due_label, due_hint) = match d.due_mode {
-        DueMode::DaysAfter => (s::DAYS_AFTER_STATEMENT, s::DAYS_AFTER_HINT),
-        DueMode::DayOfMonth => (s::DUE_DAY_OF_MONTH, s::DUE_DAY_HINT),
+        DueMode::DaysAfter => (s::days_after_statement(), s::days_after_hint()),
+        DueMode::DayOfMonth => (s::due_day_of_month(), s::due_day_hint()),
     };
     rsx! {
-        p { class: "hint example", "{s::EXAMPLE_VALUES}" }
+        p { class: "hint example", "{s::example_values()}" }
         fieldset {
-            legend { "{s::STATEMENT_AND_DUE}" }
+            legend { "{s::statement_and_due()}" }
             NumberField {
                 id: "statement-day",
-                label: s::STATEMENT_DAY,
+                label: s::statement_day(),
                 value: d.statement_day.clone(),
-                hint: s::STATEMENT_DAY_HINT.to_owned(),
+                hint: s::statement_day_hint().to_owned(),
                 oninput: move |v| draft.write().statement_day = v,
             }
             div { class: "pair",
                 SelectField {
                     id: "due-mode",
-                    label: s::DUE_RULE,
+                    label: s::due_rule(),
                     value: due_mode.to_owned(),
                     options: vec![
-                        ("days".to_owned(), s::DUE_MODE_DAYS.to_owned()),
-                        ("day".to_owned(), s::DUE_MODE_DAY.to_owned()),
+                        ("days".to_owned(), s::due_mode_days().to_owned()),
+                        ("day".to_owned(), s::due_mode_day().to_owned()),
                     ],
                     onchange: move |v: String| {
                         draft.write().due_mode = if v == "day" { DueMode::DayOfMonth } else { DueMode::DaysAfter };
@@ -213,7 +213,7 @@ fn CardFields(draft: Signal<AccountDraft>) -> Element {
             p { class: "hint", "{due_hint}" }
             SelectField {
                 id: "due-shift",
-                label: s::IF_NOT_BUSINESS_DAY,
+                label: s::if_not_business_day(),
                 value: key(&d.due_shift),
                 options: options(&[
                     (DueShift::Next, s::due_shift_label(DueShift::Next)),
@@ -226,33 +226,33 @@ fn CardFields(draft: Signal<AccountDraft>) -> Element {
             }
         }
         fieldset {
-            legend { "{s::MINIMUM_PAYMENT}" }
+            legend { "{s::minimum_payment()}" }
             div { class: "pair",
                 NumberField {
                     id: "min-percent",
-                    label: s::MIN_PERCENT,
+                    label: s::min_percent(),
                     value: d.min_percent.clone(),
                     oninput: move |v| draft.write().min_percent = v,
                 }
                 NumberField {
                     id: "min-floor",
-                    label: s::MIN_FLOOR,
+                    label: s::min_floor(),
                     value: d.min_floor.clone(),
                     oninput: move |v| draft.write().min_floor = v,
                 }
             }
-            p { class: "hint", "{s::MIN_HINT}" }
+            p { class: "hint", "{s::min_hint()}" }
             div { class: "pair",
                 SelectField {
                     id: "min-round-step",
-                    label: s::ROUND_TO,
+                    label: s::round_to(),
                     value: d.min_round_step.clone(),
                     options: rounding_steps(),
                     onchange: move |v| draft.write().min_round_step = v,
                 }
                 SelectField {
                     id: "min-round-mode",
-                    label: s::ROUNDING,
+                    label: s::rounding(),
                     value: key(&d.min_round_mode),
                     options: rounding_modes(),
                     onchange: move |v: String| {
@@ -262,17 +262,17 @@ fn CardFields(draft: Signal<AccountDraft>) -> Element {
             }
         }
         fieldset {
-            legend { "{s::INTEREST}" }
+            legend { "{s::interest()}" }
             NumberField {
                 id: "rate",
-                label: s::INTEREST_RATE_YEAR,
+                label: s::interest_rate_year(),
                 value: d.rate.clone(),
                 oninput: move |v| draft.write().rate = v,
             }
             div { class: "pair",
                 SelectField {
                     id: "day-count",
-                    label: s::DAY_COUNT,
+                    label: s::day_count(),
                     value: key(&d.day_count),
                     options: day_counts(),
                     onchange: move |v: String| {
@@ -281,7 +281,7 @@ fn CardFields(draft: Signal<AccountDraft>) -> Element {
                 }
                 SelectField {
                     id: "interest-start",
-                    label: s::INTEREST_FROM,
+                    label: s::interest_from(),
                     value: key(&d.interest_start),
                     options: options(&[
                         (InterestStart::TransactionDate, s::interest_start_label(InterestStart::TransactionDate)),
@@ -294,21 +294,21 @@ fn CardFields(draft: Signal<AccountDraft>) -> Element {
             }
             CheckField {
                 id: "grace",
-                label: s::GRACE_LABEL,
+                label: s::grace_label(),
                 checked: d.grace,
                 onchange: move |v| draft.write().grace = v,
             }
             div { class: "pair",
                 SelectField {
                     id: "interest-round-step",
-                    label: s::ROUND_TO,
+                    label: s::round_to(),
                     value: d.interest_round_step.clone(),
                     options: rounding_steps(),
                     onchange: move |v| draft.write().interest_round_step = v,
                 }
                 SelectField {
                     id: "interest-round-mode",
-                    label: s::ROUNDING,
+                    label: s::rounding(),
                     value: key(&d.interest_round_mode),
                     options: rounding_modes(),
                     onchange: move |v: String| {
@@ -318,10 +318,10 @@ fn CardFields(draft: Signal<AccountDraft>) -> Element {
             }
         }
         fieldset {
-            legend { "{s::CREDIT_LIMIT}" }
+            legend { "{s::credit_limit()}" }
             NumberField {
                 id: "credit-limit",
-                label: s::CREDIT_LIMIT_OPTIONAL,
+                label: s::credit_limit_optional(),
                 value: d.credit_limit.clone(),
                 oninput: move |v| draft.write().credit_limit = v,
             }
@@ -334,23 +334,23 @@ fn LoanFields(draft: Signal<AccountDraft>) -> Element {
     let d = draft.read().clone();
     rsx! {
         fieldset {
-            legend { "{s::LOAN_TERMS}" }
+            legend { "{s::loan_terms()}" }
             NumberField {
                 id: "principal",
-                label: s::AMOUNT_BORROWED,
+                label: s::amount_borrowed(),
                 value: d.principal.clone(),
                 oninput: move |v| draft.write().principal = v,
             }
             div { class: "pair",
                 NumberField {
                     id: "loan-rate",
-                    label: s::INTEREST_RATE_YEAR,
+                    label: s::interest_rate_year(),
                     value: d.loan_rate.clone(),
                     oninput: move |v| draft.write().loan_rate = v,
                 }
                 NumberField {
                     id: "months",
-                    label: s::MONTHS,
+                    label: s::months(),
                     value: d.months.clone(),
                     oninput: move |v| draft.write().months = v,
                 }
@@ -358,14 +358,14 @@ fn LoanFields(draft: Signal<AccountDraft>) -> Element {
             div { class: "pair",
                 TextField {
                     id: "start",
-                    label: s::START_DATE,
+                    label: s::start_date(),
                     input_type: "date",
                     value: d.start.clone(),
                     oninput: move |v| draft.write().start = v,
                 }
                 TextField {
                     id: "first-payment",
-                    label: s::FIRST_PAYMENT,
+                    label: s::first_payment(),
                     input_type: "date",
                     value: d.first_payment.clone(),
                     oninput: move |v| draft.write().first_payment = v,
@@ -373,7 +373,7 @@ fn LoanFields(draft: Signal<AccountDraft>) -> Element {
             }
             SelectField {
                 id: "method",
-                label: s::METHOD,
+                label: s::method(),
                 value: key(&d.method),
                 options: options(&[
                     (LoanMethod::Effective, s::loan_method_label(LoanMethod::Effective)),
@@ -386,7 +386,7 @@ fn LoanFields(draft: Signal<AccountDraft>) -> Element {
             if d.method == LoanMethod::Effective {
                 SelectField {
                     id: "loan-day-count",
-                    label: s::DAY_COUNT,
+                    label: s::day_count(),
                     value: key(&d.loan_day_count),
                     options: day_counts(),
                     onchange: move |v: String| {
@@ -396,9 +396,9 @@ fn LoanFields(draft: Signal<AccountDraft>) -> Element {
             }
             NumberField {
                 id: "installment",
-                label: s::STATED_INSTALLMENT_OPTIONAL,
+                label: s::stated_installment_optional(),
                 value: d.installment.clone(),
-                hint: s::STATED_INSTALLMENT_HINT.to_owned(),
+                hint: s::stated_installment_hint().to_owned(),
                 oninput: move |v| draft.write().installment = v,
             }
         }

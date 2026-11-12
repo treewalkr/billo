@@ -6,13 +6,20 @@
 use billo_api::{CategoryData, CategoryKind, Record};
 use uuid::Uuid;
 
-/// The category's own name: English first, Thai if there's no English name.
+use crate::strings::{Lang, lang};
+
+/// The category's name in the current language, or in the other one if that's all
+/// it has.
 pub fn name(c: &CategoryData) -> String {
-    c.name_en
-        .clone()
-        .filter(|n| !n.is_empty())
-        .or_else(|| c.name_th.clone())
-        .unwrap_or_default()
+    let (th, en) = (
+        c.name_th.clone().filter(|n| !n.is_empty()),
+        c.name_en.clone().filter(|n| !n.is_empty()),
+    );
+    match lang() {
+        Lang::Th => th.or(en),
+        Lang::En => en.or(th),
+    }
+    .unwrap_or_default()
 }
 
 /// The name with its parent's, for menus: `Transport › BTS & MRT`.
@@ -203,6 +210,17 @@ mod tests {
         c.name_en = None;
         c.name_th = Some("อาหาร".into());
         assert_eq!(name(&c), "อาหาร");
+    }
+
+    #[test]
+    fn names_follow_the_language() {
+        let mut c = rec(1, "Food", Expense, None).data;
+        c.name_th = Some("อาหาร".into());
+        crate::strings::set_lang(Lang::Th);
+        assert_eq!(name(&c), "อาหาร");
+        c.name_th = None;
+        assert_eq!(name(&c), "Food");
+        crate::strings::set_lang(Lang::En);
     }
 
     #[test]

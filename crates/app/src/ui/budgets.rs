@@ -43,7 +43,7 @@ pub fn Budgets() -> Element {
     let mut data = use_resource(move || async move {
         let (year, month) = shown();
         let (first, last) =
-            budgets::bounds(year, month).ok_or_else(|| s::CANT_WORK_OUT_BUDGET.to_owned())?;
+            budgets::bounds(year, month).ok_or_else(|| s::cant_work_out_budget().to_owned())?;
         let (accounts, cats, txns, list) = auth
             .call(|c| async move {
                 let accounts = c.accounts().await?;
@@ -64,7 +64,7 @@ pub fn Budgets() -> Element {
             .await
             .map_err(|e| e.to_string())?;
         let result = budgets::month(year, month, &accounts, &cats, &txns, &list)
-            .map_err(|e| format!("{}: {e}", s::CANT_WORK_OUT_BUDGET))?;
+            .map_err(|e| format!("{}: {e}", s::cant_work_out_budget()))?;
         let rows: Vec<Row> = categories::tree(&cats, CategoryKind::Expense)
             .into_iter()
             .map(|(c, depth)| Row {
@@ -101,8 +101,8 @@ pub fn Budgets() -> Element {
         },
         Some(Ok((_, rows, _))) if rows.is_empty() => rsx! {
             div { class: "empty",
-                p { "{s::BUDGETS_NEED_CATEGORIES}" }
-                button { onclick: move |_| nav.set(Screen::Categories), "{s::CATEGORIES}" }
+                p { "{s::budgets_need_categories()}" }
+                button { onclick: move |_| nav.set(Screen::Categories), "{s::categories()}" }
             }
         },
         Some(Ok((first, rows, sum))) => {
@@ -114,23 +114,23 @@ pub fn Budgets() -> Element {
                 section { class: "card", id: "budget-summary",
                     dl {
                         div { class: "row", "data-label": "budgeted",
-                            dt { "{s::BUDGETED}" }
+                            dt { "{s::budgeted()}" }
                             dd { "{format::money(sum.limit)}" }
                         }
                         div { class: "row", "data-label": "spent",
-                            dt { "{s::SPENT}" }
+                            dt { "{s::spent()}" }
                             dd { "{format::money(sum.spent)}" }
                         }
                         div { class: if over { "row strong over" } else { "row strong" }, "data-label": "left",
-                            dt { "{s::LEFT}" }
+                            dt { "{s::left()}" }
                             dd { "{format::money(sum.remaining)}" }
                         }
                         div { class: "row", "data-label": "unbudgeted",
-                            dt { "{s::UNBUDGETED}" }
+                            dt { "{s::unbudgeted()}" }
                             dd { "{format::money(sum.unbudgeted)}" }
                         }
                     }
-                    p { class: "note", "{s::BUDGETS_NOTE}" }
+                    p { class: "note", "{s::budgets_note()}" }
                 }
                 if !budgeted.is_empty() {
                     section { class: "card",
@@ -142,7 +142,7 @@ pub fn Budgets() -> Element {
                     }
                 }
                 if !others.is_empty() {
-                    h3 { class: "group-title", "{s::NOT_BUDGETED}" }
+                    h3 { class: "group-title", "{s::not_budgeted()}" }
                     section { class: "card",
                         ul { class: "list budgets", id: "unbudgeted",
                             for row in others {
@@ -156,12 +156,12 @@ pub fn Budgets() -> Element {
     };
 
     rsx! {
-        h2 { "{s::BUDGETS}" }
+        h2 { "{s::budgets()}" }
         div { class: "month-nav",
             button {
                 class: "secondary",
                 id: "prev-month",
-                title: s::PREVIOUS_MONTH,
+                title: s::previous_month(),
                 onclick: move |_| {
                     let (y, m) = shown();
                     shown.set(budgets::previous(y, m));
@@ -172,7 +172,7 @@ pub fn Budgets() -> Element {
             button {
                 class: "secondary",
                 id: "next-month",
-                title: s::NEXT_MONTH,
+                title: s::next_month(),
                 onclick: move |_| {
                     let (y, m) = shown();
                     shown.set(budgets::next(y, m));
@@ -224,7 +224,7 @@ fn BudgetRow(row: Row, first: time::Date, on_saved: EventHandler<()>) -> Element
     let save = move |e: FormEvent| {
         e.prevent_default();
         let minor = match field(
-            s::MONTHLY_LIMIT,
+            s::monthly_limit(),
             parse_amount(&text.read(), CURRENCY, false),
         ) {
             Ok(m) => m,
@@ -293,7 +293,7 @@ fn BudgetRow(row: Row, first: time::Date, on_saved: EventHandler<()>) -> Element
                 span { class: "title", "{row.title}" }
                 if !editing() {
                     button { class: "link edit-limit", onclick: open,
-                        if row.budget.is_some() { "{s::EDIT}" } else { "{s::SET_LIMIT}" }
+                        if row.budget.is_some() { "{s::edit()}" } else { "{s::set_limit()}" }
                     }
                 }
             }
@@ -304,7 +304,7 @@ fn BudgetRow(row: Row, first: time::Date, on_saved: EventHandler<()>) -> Element
                 form { class: "limit-form", onsubmit: save,
                     NumberField {
                         id: "budget-limit",
-                        label: s::MONTHLY_LIMIT,
+                        label: s::monthly_limit(),
                         value: text(),
                         placeholder: "0.00",
                         oninput: move |v| text.set(v),
@@ -313,11 +313,11 @@ fn BudgetRow(row: Row, first: time::Date, on_saved: EventHandler<()>) -> Element
                         ErrorBox { message: msg }
                     }
                     div { class: "actions",
-                        button { r#type: "submit", class: "save-limit", disabled: busy(), "{s::SAVE}" }
+                        button { r#type: "submit", class: "save-limit", disabled: busy(), "{s::save()}" }
                         if row.budget.is_some() {
-                            button { r#type: "button", class: "danger remove-limit", disabled: busy(), onclick: remove, "{s::REMOVE_LIMIT}" }
+                            button { r#type: "button", class: "danger remove-limit", disabled: busy(), onclick: remove, "{s::remove_limit()}" }
                         }
-                        button { r#type: "button", class: "secondary", onclick: move |_| editing.set(false), "{s::CANCEL}" }
+                        button { r#type: "button", class: "secondary", onclick: move |_| editing.set(false), "{s::cancel()}" }
                     }
                 }
             }
@@ -351,7 +351,7 @@ fn Figures(f: CategoryBudget<Key>) -> Element {
         div { class: "figures",
             span { class: "left", "{left}" }
             if f.over_budget {
-                span { class: "badge overdue", "{s::OVER_BUDGET}" }
+                span { class: "badge overdue", "{s::over_budget()}" }
             }
         }
     }

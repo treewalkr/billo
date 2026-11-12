@@ -29,7 +29,7 @@ pub fn Categories() -> Element {
         },
         Some(Ok(all)) if all.is_empty() => rsx! {
             StarterOffer { on_added: move |()| list.restart() }
-            p { class: "empty", "{s::NO_CATEGORIES}" }
+            p { class: "empty", "{s::no_categories()}" }
         },
         Some(Ok(all)) => {
             let groups: Vec<_> = KINDS
@@ -69,8 +69,8 @@ pub fn Categories() -> Element {
     rsx! {
         BackLink { to: Screen::More }
         div { class: "toolbar",
-            h2 { "{s::CATEGORIES}" }
-            button { id: "add-category", onclick: move |_| nav.set(Screen::CategoryForm(None)), "{s::ADD_CATEGORY}" }
+            h2 { "{s::categories()}" }
+            button { id: "add-category", onclick: move |_| nav.set(Screen::CategoryForm(None)), "{s::add_category()}" }
         }
         {body}
     }
@@ -104,17 +104,17 @@ pub fn StarterOffer(on_added: EventHandler<()>, on_dismiss: Option<EventHandler<
     };
     rsx! {
         section { class: "card starter", id: "starter-offer",
-            h3 { "{s::STARTER_TITLE}" }
-            p { class: "note", "{s::STARTER_BODY}" }
+            h3 { "{s::starter_title()}" }
+            p { class: "note", "{s::starter_body()}" }
             if let Some(msg) = error() {
                 ErrorBox { message: msg }
             }
             div { class: "actions",
                 button { id: "add-starter", disabled: busy(), onclick: add,
-                    if busy() { "{s::ADDING}" } else { "{s::ADD_STARTER}" }
+                    if busy() { "{s::adding()}" } else { "{s::add_starter()}" }
                 }
                 if let Some(dismiss) = on_dismiss {
-                    button { class: "secondary", id: "dismiss-starter", onclick: move |_| dismiss.call(()), "{s::NOT_NOW}" }
+                    button { class: "secondary", id: "dismiss-starter", onclick: move |_| dismiss.call(()), "{s::not_now()}" }
                 }
             }
         }
@@ -209,7 +209,7 @@ pub fn CategoryForm(existing: Option<Record<CategoryData>>) -> Element {
         .iter()
         .map(|k| (key(k), s::category_kind_label(*k).to_owned()))
         .collect();
-    let mut parents = vec![(String::new(), s::NO_PARENT.to_owned())];
+    let mut parents = vec![(String::new(), s::no_parent().to_owned())];
     if let Some(Ok(list)) = &*all.read() {
         parents.extend(
             parent_options(list, d.kind, this)
@@ -224,9 +224,9 @@ pub fn CategoryForm(existing: Option<Record<CategoryData>>) -> Element {
             .is_some_and(|l| l.iter().any(|c| c.data.parent_id == Some(id)))
     });
     let title = if existing.is_some() {
-        s::EDIT_CATEGORY
+        s::edit_category()
     } else {
-        s::ADD_CATEGORY
+        s::add_category()
     };
 
     rsx! {
@@ -235,21 +235,21 @@ pub fn CategoryForm(existing: Option<Record<CategoryData>>) -> Element {
         form { class: "card", id: "category-form", onsubmit: submit,
             TextField {
                 id: "name-th",
-                label: s::NAME_TH,
+                label: s::name_th(),
                 value: d.name_th.clone(),
                 oninput: move |v| draft.write().name_th = v,
             }
             TextField {
                 id: "name-en",
-                label: s::NAME_EN,
+                label: s::name_en(),
                 value: d.name_en.clone(),
-                hint: s::CATEGORY_NAME_HINT.to_owned(),
+                hint: s::category_name_hint().to_owned(),
                 oninput: move |v| draft.write().name_en = v,
             }
             if !has_children {
                 SelectField {
                     id: "category-kind",
-                    label: s::TYPE,
+                    label: s::type_label(),
                     value: key(&d.kind),
                     options: kinds,
                     onchange: move |v: String| {
@@ -264,7 +264,7 @@ pub fn CategoryForm(existing: Option<Record<CategoryData>>) -> Element {
                 }
                 SelectField {
                     id: "category-parent",
-                    label: s::PARENT,
+                    label: s::parent(),
                     value: d.parent.clone(),
                     options: parents,
                     onchange: move |v| draft.write().parent = v,
@@ -273,12 +273,12 @@ pub fn CategoryForm(existing: Option<Record<CategoryData>>) -> Element {
             if let Some(msg) = error() {
                 ErrorBox { message: msg }
             }
-            button { r#type: "submit", id: "save-category", disabled: busy(), "{s::SAVE}" }
+            button { r#type: "submit", id: "save-category", disabled: busy(), "{s::save()}" }
             if existing.is_some() {
-                p { class: "hint", "{s::CATEGORY_DELETE_NOTE}" }
+                p { class: "hint", "{s::category_delete_note()}" }
                 div { class: "actions",
                     button { r#type: "button", class: "danger", id: "delete-category", onclick: delete,
-                        if confirm() { "{s::CONFIRM_DELETE}" } else { "{s::DELETE}" }
+                        if confirm() { "{s::confirm_delete()}" } else { "{s::delete()}" }
                     }
                 }
             }

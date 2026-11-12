@@ -26,10 +26,11 @@ uuid = { version = "1", features = ["v7", "serde"] }
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 js-sys = "0.3"
 uuid = { version = "1", features = ["v7", "serde", "js"] }
-web-sys = { version = "0.3", features = ["Window", "Storage"] }
+web-sys = { version = "0.3", features = ["Window", "Storage", "Navigator"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 dirs = "6"
+sys-locale = "0.3"
 time = { version = "0.3", features = ["std", "local-offset", "macros"] }
 
 [lints]

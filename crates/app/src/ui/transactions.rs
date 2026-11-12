@@ -56,7 +56,7 @@ pub fn TransactionList(account: Record<AccountData>) -> Element {
             ErrorBox { message: e.to_string(), on_retry: move |_| txns.restart() }
         },
         Some(Ok((list, _))) if list.is_empty() => {
-            rsx! { p { class: "empty", "{s::NO_TRANSACTIONS}" } }
+            rsx! { p { class: "empty", "{s::no_transactions()}" } }
         }
         Some(Ok((list, cats))) => {
             let mut items: Vec<_> = list.clone();
@@ -77,7 +77,7 @@ pub fn TransactionList(account: Record<AccountData>) -> Element {
                         .map(|c| categories::label(cats, &c.data));
                     let mut sub = vec![format::date(t.data.occurred_on)];
                     if let Some(p) = t.data.posted_on.filter(|p| *p != t.data.occurred_on) {
-                        sub.push(format!("{} {}", s::POSTED, format::date(p)));
+                        sub.push(format!("{} {}", s::posted(), format::date(p)));
                     }
                     if let Some(c) = cat {
                         sub.push(c);
@@ -114,12 +114,12 @@ pub fn TransactionList(account: Record<AccountData>) -> Element {
     rsx! {
         section { class: "card",
             div { class: "card-head",
-                h3 { "{s::TRANSACTIONS}" }
+                h3 { "{s::transactions()}" }
                 button {
                     class: "secondary",
                     id: "add-transaction",
                     onclick: move |_| nav.set(Screen::TransactionForm(Box::new(add_account.clone()), None)),
-                    "{s::ADD}"
+                    "{s::add()}"
                 }
             }
             {body}
@@ -222,7 +222,7 @@ pub fn TransactionForm(
         .map(|k| (key(k), s::transaction_kind_label(kind, *k).to_owned()))
         .collect();
     let want = category_kind(kind, d.kind);
-    let mut cat_options = vec![(String::new(), s::NO_CATEGORY.to_owned())];
+    let mut cat_options = vec![(String::new(), s::no_category().to_owned())];
     let cat_error = match &*categories.read() {
         Some(Ok(list)) => {
             cat_options.extend(
@@ -235,14 +235,14 @@ pub fn TransactionForm(
         Some(Err(e)) => Some(e.to_string()),
         None => None,
     };
-    cat_options.push((NEW_CATEGORY.to_owned(), s::NEW_CATEGORY_OPTION.to_owned()));
+    cat_options.push((NEW_CATEGORY.to_owned(), s::new_category_option().to_owned()));
     let title = if existing.is_some() {
-        s::EDIT_TRANSACTION
+        s::edit_transaction()
     } else {
-        s::ADD_TRANSACTION
+        s::add_transaction()
     };
     let amount_hint =
-        (d.kind == TransactionKind::InterestAdjust).then(|| s::INTEREST_ADJUST_HINT.to_owned());
+        (d.kind == TransactionKind::InterestAdjust).then(|| s::interest_adjust_hint().to_owned());
 
     rsx! {
         BackLink { to: Screen::Account(account_id) }
@@ -251,7 +251,7 @@ pub fn TransactionForm(
         form { class: "card", id: "transaction-form", onsubmit: submit,
             SelectField {
                 id: "txn-kind",
-                label: s::TYPE,
+                label: s::type_label(),
                 value: key(&d.kind),
                 options: kinds,
                 onchange: move |v: String| {
@@ -260,7 +260,7 @@ pub fn TransactionForm(
             }
             NumberField {
                 id: "amount",
-                label: s::AMOUNT,
+                label: s::amount(),
                 value: d.amount.clone(),
                 placeholder: "0.00",
                 hint: amount_hint,
@@ -269,7 +269,7 @@ pub fn TransactionForm(
             div { class: "pair",
                 TextField {
                     id: "occurred-on",
-                    label: s::DATE,
+                    label: s::date(),
                     input_type: "date",
                     value: d.occurred_on.clone(),
                     oninput: move |v| draft.write().occurred_on = v,
@@ -277,7 +277,7 @@ pub fn TransactionForm(
                 if is_card_like(kind) {
                     TextField {
                         id: "posted-on",
-                        label: s::POSTING_DATE,
+                        label: s::posting_date(),
                         input_type: "date",
                         value: d.posted_on.clone(),
                         oninput: move |v| draft.write().posted_on = v,
@@ -285,11 +285,11 @@ pub fn TransactionForm(
                 }
             }
             if is_card_like(kind) {
-                p { class: "hint", "{s::POSTING_DATE_HINT}" }
+                p { class: "hint", "{s::posting_date_hint()}" }
             }
             SelectField {
                 id: "category",
-                label: s::CATEGORY,
+                label: s::category(),
                 value: d.category.clone(),
                 options: cat_options,
                 onchange: move |v| draft.write().category = v,
@@ -300,25 +300,25 @@ pub fn TransactionForm(
             if d.category == NEW_CATEGORY {
                 TextField {
                     id: "new-category",
-                    label: s::NEW_CATEGORY_NAME,
+                    label: s::new_category_name(),
                     value: d.new_category.clone(),
                     oninput: move |v| draft.write().new_category = v,
                 }
             }
             TextField {
                 id: "note",
-                label: s::NOTE,
+                label: s::note(),
                 value: d.note.clone(),
                 oninput: move |v| draft.write().note = v,
             }
             if let Some(msg) = error() {
                 ErrorBox { message: msg }
             }
-            button { r#type: "submit", id: "save-transaction", disabled: busy(), "{s::SAVE}" }
+            button { r#type: "submit", id: "save-transaction", disabled: busy(), "{s::save()}" }
             if existing.is_some() {
                 div { class: "actions",
                     button { r#type: "button", class: "danger", id: "delete-transaction", onclick: delete,
-                        if confirm() { "{s::CONFIRM_DELETE}" } else { "{s::DELETE}" }
+                        if confirm() { "{s::confirm_delete()}" } else { "{s::delete()}" }
                     }
                 }
             }

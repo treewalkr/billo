@@ -15,6 +15,8 @@ use serde::Serialize;
 use serde::de::DeserializeOwned;
 use uuid::Uuid;
 
+use crate::strings as s;
+
 /// Server base URL, set at build time with `BILLO_API_URL`.
 pub const BASE_URL: &str = match option_env!("BILLO_API_URL") {
     Some(url) => url,
@@ -41,13 +43,13 @@ pub enum ApiError {
 impl fmt::Display for ApiError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Network(m) => write!(f, "Can't reach the server ({m})"),
-            Self::Unauthorized => f.write_str("Your session has ended. Please sign in again."),
-            Self::NotFound => f.write_str("Not found"),
-            Self::Validation(m) => write!(f, "Not saved: {m}"),
-            Self::Conflict(m) => write!(f, "Conflict: {m}"),
-            Self::Server(status, m) => write!(f, "Server error {status}: {m}"),
-            Self::Decode(m) => write!(f, "Unexpected response from the server ({m})"),
+            Self::Network(m) => write!(f, "{} ({m})", s::err_network()),
+            Self::Unauthorized => f.write_str(s::err_session_ended()),
+            Self::NotFound => f.write_str(s::err_not_found()),
+            Self::Validation(m) => write!(f, "{}: {m}", s::err_not_saved()),
+            Self::Conflict(m) => write!(f, "{}: {m}", s::err_conflict()),
+            Self::Server(status, m) => write!(f, "{} {status}: {m}", s::err_server()),
+            Self::Decode(m) => write!(f, "{} ({m})", s::err_decode()),
         }
     }
 }

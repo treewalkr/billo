@@ -17,7 +17,11 @@ use time::{Date, Duration};
 use uuid::Uuid;
 
 use crate::input::{field, optional, parse_amount, parse_date, parse_int, parse_percent_bp};
-use crate::{convert, format};
+use crate::{convert, format, strings as s};
+
+fn too_large(label: &str) -> String {
+    format!("{label}: {}", s::too_large())
+}
 
 /// The wire name of a settings enum (`"half_up"`), used as a `<select>` value.
 pub fn key<T: Serialize>(v: &T) -> String {
@@ -173,7 +177,7 @@ impl AccountDraft {
     pub fn to_data(&self) -> Result<AccountData, String> {
         let name = self.name.trim();
         if name.is_empty() {
-            return Err("Name: required".into());
+            return Err(format!("{}: {}", s::name(), s::required()));
         }
         let cur = convert::currency(&self.currency).map_err(|e| e.to_string())?;
         let mut rules = AccountRules {
@@ -204,17 +208,19 @@ impl AccountDraft {
     fn card_settings(&self, cur: Currency) -> Result<CardSettings, String> {
         let day = |label: &str, t: &str| -> Result<u8, String> {
             let d = field(label, parse_int(t, 1, 31))?;
-            u8::try_from(d).map_err(|_| format!("{label}: must be 1 to 31"))
+            u8::try_from(d).map_err(|_| format!("{label}: {}", s::between(1, 31)))
         };
-        let statement_day = day("Statement day", &self.statement_day)?;
+        let statement_day = day(s::statement_day(), &self.statement_day)?;
         let due = match self.due_mode {
             DueMode::DaysAfter => {
-                let n = field("Days after statement", parse_int(&self.due_value, 1, 90))?;
+                let n = field(s::days_after_statement(), parse_int(&self.due_value, 1, 90))?;
                 DueRule::DaysAfterStatement(
-                    u16::try_from(n).map_err(|_| "Days after statement: too large".to_owned())?,
+                    u16::try_from(n).map_err(|_| too_large(s::days_after_statement()))?,
                 )
             }
-            DueMode::DayOfMonth => DueRule::DayOfMonth(day("Due day", &self.due_value)?),
+            DueMode::DayOfMonth => {
+                DueRule::DayOfMonth(day(s::due_day_of_month(), &self.due_value)?)
+            }
         };
         let amount = |label: &str, t: &str| field(label, parse_amount(t, cur, false));
         Ok(CardSettings {
@@ -222,23 +228,23 @@ impl AccountDraft {
             due,
             due_shift: self.due_shift,
             credit_limit_minor: field(
-                "Credit limit",
+                s::credit_limit(),
                 optional(&self.credit_limit, |t| parse_amount(t, cur, false)),
             )?,
             min_payment: MinPaymentSettings {
-                percent_bp: field("Minimum %", parse_percent_bp(&self.min_percent))?,
-                floor_minor: amount("Minimum amount", &self.min_floor)?,
+                percent_bp: field(s::min_percent(), parse_percent_bp(&self.min_percent))?,
+                floor_minor: amount(s::min_amount(), &self.min_floor)?,
                 rounding: RoundingSettings {
-                    step: amount("Minimum rounding", &self.min_round_step)?,
+                    step: amount(s::min_rounding(), &self.min_round_step)?,
                     mode: self.min_round_mode,
                 },
             },
             interest: InterestSettings {
-                annual_rate_bp: field("Interest rate", parse_percent_bp(&self.rate))?,
+                annual_rate_bp: field(s::interest_rate(), parse_percent_bp(&self.rate))?,
                 day_count: self.day_count,
                 start: self.interest_start,
                 rounding: RoundingSettings {
-                    step: amount("Interest rounding", &self.interest_round_step)?,
+                    step: amount(s::interest_rounding(), &self.interest_round_step)?,
                     mode: self.interest_round_mode,
                 },
                 grace_if_paid_in_full: self.grace,
@@ -247,18 +253,21 @@ impl AccountDraft {
     }
 
     fn loan_settings(&self, cur: Currency) -> Result<LoanSettings, String> {
-        let months = field("Months", parse_int(&self.months, 1, 600))?;
+        let months = field(s::months(), parse_int(&self.months, 1, 600))?;
         Ok(LoanSettings {
-            principal_minor: field("Amount borrowed", parse_amount(&self.principal, cur, false))?,
-            annual_rate_bp: field("Interest rate", parse_percent_bp(&self.loan_rate))?,
-            months: u16::try_from(months).map_err(|_| "Months: too large".to_owned())?,
-            start: field("Start date", parse_date(&self.start))?,
-            first_payment: field("First payment", parse_date(&self.first_payment))?,
+            principal_minor: field(
+                s::amount_borrowed(),
+                parse_amount(&self.principal, cur, false),
+            )?,
+            annual_rate_bp: field(s::interest_rate(), parse_percent_bp(&self.loan_rate))?,
+            months: u16::try_from(months).map_err(|_| too_large(s::months()))?,
+            start: field(s::start_date(), parse_date(&self.start))?,
+            first_payment: field(s::first_payment(), parse_date(&self.first_payment))?,
             method: self.method,
             day_count: self.loan_day_count,
             rounding: self.loan_rounding,
             installment_minor: field(
-                "Monthly installment",
+                s::stated_installment(),
                 optional(&self.installment, |t| parse_amount(t, cur, false)),
             )?,
         })
@@ -345,7 +354,7 @@ impl TransactionDraft {
         }
         let name = self.new_category.trim();
         if name.is_empty() {
-            return Err("New category: required".into());
+            return Err(format!("{}: {}", s::new_category_name(), s::required()));
         }
         Ok(Some(name.to_owned()))
     }
@@ -361,24 +370,26 @@ impl TransactionDraft {
         new_category_id: Option<Uuid>,
     ) -> Result<TransactionData, String> {
         let cur = convert::currency(currency).map_err(|e| e.to_string())?;
-        let occurred_on = field("Date", parse_date(&self.occurred_on))?;
+        let occurred_on = field(s::date(), parse_date(&self.occurred_on))?;
         let posted_on = if is_card_like(account) {
-            field("Posting date", optional(&self.posted_on, parse_date))?
+            field(s::posting_date(), optional(&self.posted_on, parse_date))?
         } else {
             None
         };
         if posted_on.is_some_and(|p| p < occurred_on) {
-            return Err("Posting date: can't be before the date".into());
+            return Err(format!("{}: {}", s::posting_date(), s::not_before_date()));
         }
         let negative_ok = self.kind == TransactionKind::InterestAdjust;
-        let minor = field("Amount", parse_amount(&self.amount, cur, negative_ok))?;
+        let minor = field(s::amount(), parse_amount(&self.amount, cur, negative_ok))?;
         if minor == 0 || (!negative_ok && minor < 0) {
-            return Err("Amount: must be more than zero".into());
+            return Err(format!("{}: {}", s::amount(), s::more_than_zero()));
         }
         let category_id = match (self.category.as_str(), new_category_id) {
             (NEW_CATEGORY, id) => id,
             ("", _) => None,
-            (id, _) => Some(Uuid::parse_str(id).map_err(|_| "Category: unknown".to_owned())?),
+            (id, _) => Some(
+                Uuid::parse_str(id).map_err(|_| format!("{}: {}", s::category(), s::unknown()))?,
+            ),
         };
         let note = self.note.trim();
         let keep = self.keep.as_ref();
@@ -431,17 +442,17 @@ impl PlanDraft {
 
     pub fn to_data(&self, card_id: Uuid, currency: &str) -> Result<InstallmentPlanData, String> {
         let cur = convert::currency(currency).map_err(|e| e.to_string())?;
-        let months = field("Months", parse_int(&self.months, 1, 120))?;
+        let months = field(s::months(), parse_int(&self.months, 1, 120))?;
         let keep = self.keep.as_ref();
         let data = InstallmentPlanData {
             card_account_id: card_id,
             principal: billo_api::Money::new(
-                field("Amount", parse_amount(&self.principal, cur, false))?,
+                field(s::amount(), parse_amount(&self.principal, cur, false))?,
                 cur.code(),
             ),
-            months: u16::try_from(months).map_err(|_| "Months: too large".to_owned())?,
-            monthly_rate_bp: field("Monthly rate", parse_percent_bp(&self.monthly_rate))?,
-            first_post_on: field("First posting", parse_date(&self.first_post_on))?,
+            months: u16::try_from(months).map_err(|_| too_large(s::months()))?,
+            monthly_rate_bp: field(s::monthly_rate(), parse_percent_bp(&self.monthly_rate))?,
+            first_post_on: field(s::first_posting(), parse_date(&self.first_post_on))?,
             closed_on: keep.and_then(|k| k.closed_on),
             rounding: keep.map(|k| k.rounding).unwrap_or_default(),
             remainder: keep.map(|k| k.remainder).unwrap_or_default(),
@@ -487,11 +498,13 @@ impl CategoryDraft {
         };
         let (name_th, name_en) = (text(&self.name_th), text(&self.name_en));
         if name_th.is_none() && name_en.is_none() {
-            return Err(crate::strings::CATEGORY_NAME_REQUIRED.to_owned());
+            return Err(s::category_name_required().to_owned());
         }
         let parent_id = match self.parent.as_str() {
             "" => None,
-            id => Some(Uuid::parse_str(id).map_err(|_| "Parent: unknown".to_owned())?),
+            id => Some(
+                Uuid::parse_str(id).map_err(|_| format!("{}: {}", s::parent(), s::unknown()))?,
+            ),
         };
         Ok(CategoryData {
             parent_id,
@@ -680,7 +693,10 @@ mod tests {
             Some(cat)
         );
         f.category = NEW_CATEGORY.into();
-        assert_eq!(f.new_category_name(), Err("New category: required".into()));
+        assert_eq!(
+            f.new_category_name(),
+            Err("New category name: required".into())
+        );
         f.new_category = " Food ".into();
         assert_eq!(f.new_category_name(), Ok(Some("Food".into())));
         assert_eq!(

@@ -1,7 +1,9 @@
 //! User-facing formatting. Integer arithmetic only.
 
 use billo_domain::{Currency, Money};
-use time::Date;
+use time::{Date, Month};
+
+use crate::strings::{Lang, lang};
 
 const fn symbol(currency: Currency) -> &'static str {
     match currency {
@@ -61,15 +63,77 @@ pub fn percent(bp: u32) -> String {
     s.trim_end_matches('0').trim_end_matches('.').to_owned()
 }
 
-/// `25 Nov 2026`.
-pub fn date(d: Date) -> String {
-    let month = d.month().to_string();
-    format!("{} {} {}", d.day(), &month[..3], d.year())
+const TH_MONTHS_SHORT: [&str; 12] = [
+    "ม.ค.",
+    "ก.พ.",
+    "มี.ค.",
+    "เม.ย.",
+    "พ.ค.",
+    "มิ.ย.",
+    "ก.ค.",
+    "ส.ค.",
+    "ก.ย.",
+    "ต.ค.",
+    "พ.ย.",
+    "ธ.ค.",
+];
+
+const TH_MONTHS: [&str; 12] = [
+    "มกราคม",
+    "กุมภาพันธ์",
+    "มีนาคม",
+    "เมษายน",
+    "พฤษภาคม",
+    "มิถุนายน",
+    "กรกฎาคม",
+    "สิงหาคม",
+    "กันยายน",
+    "ตุลาคม",
+    "พฤศจิกายน",
+    "ธันวาคม",
+];
+
+/// Buddhist Era year (พ.ศ.): Gregorian + 543.
+pub const fn buddhist_year(year: i32) -> i32 {
+    year + 543
 }
 
-/// `November 2026`.
-pub fn month_year(year: i32, month: time::Month) -> String {
-    format!("{month} {year}")
+fn month_index(month: Month) -> usize {
+    usize::from(u8::from(month)) - 1
+}
+
+/// `25 Nov 2026` in English, `25 พ.ย. 2569` (Buddhist Era) in Thai.
+pub fn date_in(d: Date, lang: Lang) -> String {
+    match lang {
+        Lang::En => {
+            let month = d.month().to_string();
+            format!("{} {} {}", d.day(), &month[..3], d.year())
+        }
+        Lang::Th => format!(
+            "{} {} {}",
+            d.day(),
+            TH_MONTHS_SHORT[month_index(d.month())],
+            buddhist_year(d.year())
+        ),
+    }
+}
+
+/// [`date_in`] the current language.
+pub fn date(d: Date) -> String {
+    date_in(d, lang())
+}
+
+/// `November 2026` in English, `พฤศจิกายน 2569` in Thai.
+pub fn month_year_in(year: i32, month: Month, lang: Lang) -> String {
+    match lang {
+        Lang::En => format!("{month} {year}"),
+        Lang::Th => format!("{} {}", TH_MONTHS[month_index(month)], buddhist_year(year)),
+    }
+}
+
+/// [`month_year_in`] the current language.
+pub fn month_year(year: i32, month: Month) -> String {
+    month_year_in(year, month, lang())
 }
 
 /// Basis points as a whole percentage, rounded down: `6_666` → `"66%"`.
@@ -146,5 +210,62 @@ mod tests {
     fn dates() {
         assert_eq!(date(date!(2026 - 11 - 25)), "25 Nov 2026");
         assert_eq!(date(date!(2026 - 12 - 1)), "1 Dec 2026");
+    }
+
+    #[test]
+    fn buddhist_era_dates() {
+        assert_eq!(buddhist_year(2026), 2569);
+        assert_eq!(date_in(date!(2026 - 11 - 16), Lang::Th), "16 พ.ย. 2569");
+        assert_eq!(date_in(date!(2027 - 01 - 01), Lang::Th), "1 ม.ค. 2570");
+        assert_eq!(date_in(date!(2024 - 02 - 29), Lang::Th), "29 ก.พ. 2567");
+        assert_eq!(date_in(date!(2026 - 12 - 31), Lang::Th), "31 ธ.ค. 2569");
+        assert_eq!(date_in(date!(2026 - 11 - 16), Lang::En), "16 Nov 2026");
+    }
+
+    #[test]
+    fn every_thai_month() {
+        let short: Vec<_> = (1..=12)
+            .map(|m| {
+                let d = Date::from_calendar_date(2026, Month::try_from(m).unwrap(), 1).unwrap();
+                date_in(d, Lang::Th)
+            })
+            .collect();
+        assert_eq!(
+            short,
+            [
+                "1 ม.ค. 2569",
+                "1 ก.พ. 2569",
+                "1 มี.ค. 2569",
+                "1 เม.ย. 2569",
+                "1 พ.ค. 2569",
+                "1 มิ.ย. 2569",
+                "1 ก.ค. 2569",
+                "1 ส.ค. 2569",
+                "1 ก.ย. 2569",
+                "1 ต.ค. 2569",
+                "1 พ.ย. 2569",
+                "1 ธ.ค. 2569",
+            ]
+        );
+    }
+
+    #[test]
+    fn month_titles() {
+        assert_eq!(
+            month_year_in(2026, Month::November, Lang::En),
+            "November 2026"
+        );
+        assert_eq!(
+            month_year_in(2026, Month::November, Lang::Th),
+            "พฤศจิกายน 2569"
+        );
+        assert_eq!(month_year_in(2025, Month::January, Lang::Th), "มกราคม 2568");
+    }
+
+    #[test]
+    fn whole_percents_round_down() {
+        assert_eq!(whole_percent(6_666), "66%");
+        assert_eq!(whole_percent(12_500), "125%");
+        assert_eq!(whole_percent(0), "0%");
     }
 }

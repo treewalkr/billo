@@ -1,11 +1,16 @@
 //! The app shell: session, header and screens.
 
+use billo_api::{AccountData, AccountKind, Record};
 use dioxus::prelude::*;
+use uuid::Uuid;
 
 use crate::api::{self, ApiError, Client};
 use crate::storage::{self, Session};
 use crate::strings as s;
 
+mod account_form;
+mod accounts;
+mod fields;
 mod home;
 mod signin;
 
@@ -56,10 +61,52 @@ pub fn use_auth() -> Auth {
     use_context::<Auth>()
 }
 
+/// Which screen is showing. Kept in app state (not the URL) for now.
+#[derive(Debug, Clone, PartialEq)]
+pub enum Screen {
+    Home,
+    Accounts,
+    Account(Uuid),
+    /// `None`: pick the kind first.
+    NewAccount(Option<AccountKind>),
+    EditAccount(Box<Record<AccountData>>),
+}
+
+impl Screen {
+    /// A distinct key per screen, so forms start fresh when the screen changes.
+    fn key(&self) -> String {
+        match self {
+            Self::Home => "home".into(),
+            Self::Accounts => "accounts".into(),
+            Self::Account(id) => format!("account-{id}"),
+            Self::NewAccount(k) => format!("new-account-{k:?}"),
+            Self::EditAccount(r) => format!("edit-account-{}-{}", r.id, r.version),
+        }
+    }
+
+    fn tab(&self) -> Tab {
+        match self {
+            Self::Home => Tab::Home,
+            _ => Tab::Accounts,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Tab {
+    Home,
+    Accounts,
+}
+
+pub fn use_nav() -> Signal<Screen> {
+    use_context::<Signal<Screen>>()
+}
+
 #[component]
 pub fn App() -> Element {
     let session = use_signal(storage::load);
     use_context_provider(|| Auth(session));
+    use_context_provider(|| Signal::new(Screen::Home));
     let signed_in = session.read().is_some();
     // Check a saved session once at start-up; a 401 signs out.
     let auth = Auth(session);
@@ -74,9 +121,43 @@ pub fn App() -> Element {
         Header {}
         main {
             if signed_in {
-                home::Home {}
+                Screens {}
             } else {
                 signin::SignIn {}
+            }
+        }
+    }
+}
+
+#[component]
+fn Screens() -> Element {
+    let mut nav = use_nav();
+    let screen = nav.read().clone();
+    let tab = screen.tab();
+    let body = match screen.clone() {
+        Screen::Home => rsx! { home::Home {} },
+        Screen::Accounts => rsx! { accounts::Accounts {} },
+        Screen::Account(id) => rsx! { accounts::AccountPage { id } },
+        Screen::NewAccount(None) => rsx! { account_form::PickKind {} },
+        Screen::NewAccount(Some(kind)) => rsx! { account_form::AccountForm { kind } },
+        Screen::EditAccount(r) => {
+            rsx! { account_form::AccountForm { kind: r.data.kind, existing: *r } }
+        }
+    };
+    rsx! {
+        div { key: "{screen.key()}", {body} }
+        nav { class: "tabs",
+            button {
+                id: "tab-home",
+                class: if tab == Tab::Home { "active" } else { "" },
+                onclick: move |_| nav.set(Screen::Home),
+                "{s::THIS_MONTH}"
+            }
+            button {
+                id: "tab-accounts",
+                class: if tab == Tab::Accounts { "active" } else { "" },
+                onclick: move |_| nav.set(Screen::Accounts),
+                "{s::ACCOUNTS}"
             }
         }
     }
@@ -126,4 +207,9 @@ pub fn ErrorBox(message: String, on_retry: Option<EventHandler<()>>) -> Element 
             }
         }
     }
+}
+
+#[component]
+pub fn Loading() -> Element {
+    rsx! { p { class: "loading", "{s::LOADING}" } }
 }

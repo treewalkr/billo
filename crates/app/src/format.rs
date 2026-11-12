@@ -38,6 +38,29 @@ pub fn money(m: Money) -> String {
     }
 }
 
+/// A scaled integer as plain digits for editing: `plain(123456, 2) == "1234.56"`.
+pub fn plain(value: i64, scale: u32) -> String {
+    if scale == 0 {
+        return value.to_string();
+    }
+    let factor = 10_u64.pow(scale);
+    let abs = value.unsigned_abs();
+    let sign = if value < 0 { "-" } else { "" };
+    let width = scale as usize;
+    format!("{sign}{}.{:0width$}", abs / factor, abs % factor)
+}
+
+/// Minor units in `currency` as plain digits: `"1234.56"`, `"1500"` (JPY).
+pub fn plain_amount(minor: i64, currency: Currency) -> String {
+    plain(minor, currency.minor_units())
+}
+
+/// Basis points as a percentage without trailing zeros: `1600` → `"16"`, `69` → `"0.69"`.
+pub fn percent(bp: u32) -> String {
+    let s = plain(i64::from(bp), 2);
+    s.trim_end_matches('0').trim_end_matches('.').to_owned()
+}
+
 /// `25 Nov 2026`.
 pub fn date(d: Date) -> String {
     let month = d.month().to_string();
@@ -90,6 +113,23 @@ mod tests {
     #[test]
     fn zero_decimal_currency() {
         assert_eq!(money(Money::new(1_500, Currency::Jpy)), "¥1,500");
+    }
+
+    #[test]
+    fn plain_numbers() {
+        assert_eq!(plain(123_456, 2), "1234.56");
+        assert_eq!(plain(5, 2), "0.05");
+        assert_eq!(plain(-5, 2), "-0.05");
+        assert_eq!(plain(1_500, 0), "1500");
+        assert_eq!(plain_amount(100_000, Currency::Thb), "1000.00");
+    }
+
+    #[test]
+    fn percents() {
+        assert_eq!(percent(1_600), "16");
+        assert_eq!(percent(69), "0.69");
+        assert_eq!(percent(850), "8.5");
+        assert_eq!(percent(0), "0");
     }
 
     #[test]

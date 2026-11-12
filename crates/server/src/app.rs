@@ -2,21 +2,43 @@
 
 use axum::Router;
 use axum::http::{HeaderValue, Method, header};
-use axum::routing::get;
+use axum::routing::{get, post};
 use sqlx::PgPool;
 use tower_http::cors::{AllowOrigin, CorsLayer};
 use tower_http::trace::TraceLayer;
 
 use crate::routes;
 
+use crate::error;
+
 #[derive(Debug, Clone)]
 pub struct AppState {
     pub db: PgPool,
+    /// Registers `POST /api/v1/auth/dev-login`. Never enable in production.
+    pub dev_login: bool,
+}
+
+impl AppState {
+    /// State with dev login disabled.
+    pub fn new(db: PgPool) -> Self {
+        Self {
+            db,
+            dev_login: false,
+        }
+    }
 }
 
 pub fn router(state: AppState) -> Router {
+    let mut api = Router::new()
+        .route("/health", get(routes::health::health))
+        .route("/auth/logout", post(routes::auth::logout))
+        .route("/me", get(routes::auth::me));
+    if state.dev_login {
+        api = api.route("/auth/dev-login", post(routes::auth::dev_login));
+    }
     Router::new()
-        .route("/api/v1/health", get(routes::health::health))
+        .nest("/api/v1", api)
+        .fallback(error::not_found)
         .layer(TraceLayer::new_for_http())
         .with_state(state)
 }

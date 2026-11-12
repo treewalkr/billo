@@ -4,6 +4,12 @@
 
 use serde::{Deserialize, Serialize};
 
+pub mod auth;
+pub mod error;
+
+pub use auth::{DevLoginRequest, LoginResponse, MeResponse};
+pub use error::{ErrorBody, ErrorCode, ErrorDetail};
+
 /// Body of `GET /api/v1/health`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct HealthResponse {

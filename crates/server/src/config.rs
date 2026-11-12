@@ -14,6 +14,8 @@ pub struct Config {
     /// Browser origins allowed to call the API (dev only, e.g. `dx serve`).
     /// Empty means no CORS layer.
     pub cors_allowed_origins: Vec<HeaderValue>,
+    /// `DEV_LOGIN=true` enables password-less sign-in by email. Development only.
+    pub dev_login: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -54,10 +56,12 @@ impl Config {
             .parse()
             .map_err(|_| ConfigError::InvalidBindAddr(bind))?;
         let cors_allowed_origins = parse_origins(&get("CORS_ALLOWED_ORIGINS").unwrap_or_default())?;
+        let dev_login = get("DEV_LOGIN").is_some_and(|v| v.trim().eq_ignore_ascii_case("true"));
         Ok(Self {
             database_url,
             bind_addr,
             cors_allowed_origins,
+            dev_login,
         })
     }
 }
@@ -94,6 +98,22 @@ mod tests {
         assert_eq!(c.database_url, "postgres://x");
         assert_eq!(c.bind_addr, "0.0.0.0:8080".parse().unwrap());
         assert!(c.cors_allowed_origins.is_empty());
+        assert!(!c.dev_login);
+    }
+
+    #[test]
+    fn dev_login_only_when_true() {
+        for (v, want) in [
+            ("true", true),
+            ("TRUE", true),
+            ("1", false),
+            ("yes", false),
+            ("", false),
+        ] {
+            let c =
+                Config::from_lookup(lookup(&[("DATABASE_URL", "x"), ("DEV_LOGIN", v)])).unwrap();
+            assert_eq!(c.dev_login, want, "DEV_LOGIN={v:?}");
+        }
     }
 
     #[test]

@@ -32,7 +32,7 @@ async fn health_ok_with_database() {
     let db = PgPoolOptions::new().connect(&url).await.unwrap();
     billo_server::MIGRATOR.run(&db).await.unwrap();
 
-    let (code, body) = get_health(AppState { db }).await;
+    let (code, body) = get_health(AppState::new(db)).await;
     assert_eq!(code, StatusCode::OK);
     assert_eq!(
         body,
@@ -50,7 +50,7 @@ async fn health_degraded_when_database_is_closed() {
     let db = PgPoolOptions::new().connect(&url).await.unwrap();
     db.close().await;
 
-    let (code, body) = get_health(AppState { db }).await;
+    let (code, body) = get_health(AppState::new(db)).await;
     assert_eq!(code, StatusCode::SERVICE_UNAVAILABLE);
     assert_eq!(body.status, "degraded");
 }

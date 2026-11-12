@@ -23,7 +23,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .await?;
     billo_server::MIGRATOR.run(&db).await?;
 
-    let app = with_cors(router(AppState { db }), &config.cors_allowed_origins);
+    if config.dev_login {
+        tracing::warn!(
+            "DEV_LOGIN=true: anyone can sign in as any email via POST /api/v1/auth/dev-login. \
+             NEVER enable this in production."
+        );
+    }
+    let state = AppState {
+        db,
+        dev_login: config.dev_login,
+    };
+    let app = with_cors(router(state), &config.cors_allowed_origins);
     let listener = tokio::net::TcpListener::bind(config.bind_addr).await?;
     tracing::info!(
         addr = %config.bind_addr,

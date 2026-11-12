@@ -2,7 +2,7 @@
 
 Personal finance app for tracking income, expenses, credit cards, installments and loans. Built for Thailand first (Thai/English, THB). Runs on web, iOS and Android.
 
-> **Status:** early development. Domain logic, a server skeleton and a first app screen (sample data) exist.
+> **Status:** early development. The web app works with real data entered by hand: accounts, card and loan settings, transactions, installment plans and a "This month" view of what's due. Offline use and sync come next.
 
 ## Stack
 
@@ -35,7 +35,7 @@ Web app (needs the [Dioxus CLI](https://dioxuslabs.com/learn/0.7/getting_started
 ```bash
 docker compose up -d                      # the server allows CORS from :8081 in dev
 cd crates/app && dx serve --platform web --port 8081
-# open http://localhost:8081
+# open http://localhost:8081 and sign in with any email (dev login)
 ```
 
 The app talks to `http://localhost:8080` by default; set `BILLO_API_URL` at build time to change it.

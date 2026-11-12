@@ -13,4 +13,5 @@
 - Set a monthly budget for each spending category and see what you've spent, what's left and when you go over. Refunds lower your spending, and spending without a budget is shown too.
 - Add 0% or interest-bearing installment plans to a card.
 - "This month" now shows your real card statements (due date, balance, minimum due and whether it's paid) and your next loan payments, sorted by due date.
+- Billo works offline: everything you've entered stays on your device, new changes are saved straight away and sent to the server when you're back online. A small badge shows whether you're synced, offline or have changes waiting, and "Sync now" under "More" fetches changes made on your other devices.
 - Use Billo in Thai or English: pick your language under "More" or on the sign-in screen. Billo starts in Thai if your device is set to Thai, and in Thai shows dates in the Buddhist Era (e.g. 16 พ.ย. 2569).

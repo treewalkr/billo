@@ -2,7 +2,7 @@
 
 Personal finance app for tracking income, expenses, credit cards, installments and loans. Built for Thailand first (Thai/English, THB). Runs on web, iOS and Android.
 
-> **Status:** early development. The web app works with real data entered by hand: accounts, card and loan settings, transactions, installment plans and a "This month" view of what's due. Offline use and sync come next.
+> **Status:** early development. The web app works with real data entered by hand: accounts, card and loan settings, transactions, installment plans, categories, budgets and a "This month" view of what's due. It keeps your data on the device (IndexedDB on the web, SQLite on iOS / Android), works offline, and syncs with the server when it's back online.
 
 ## Stack
 

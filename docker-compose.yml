@@ -25,6 +25,12 @@ services:
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:8081,http://127.0.0.1:8081}
       # Dev only: password-less sign-in via POST /api/v1/auth/dev-login. Never in production.
       DEV_LOGIN: ${DEV_LOGIN:-true}
+      # Google sign-in: on when client id + secret are set (read from .env, never committed).
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GOOGLE_IOS_CLIENT_ID: ${GOOGLE_IOS_CLIENT_ID:-}
+      PUBLIC_URL: ${PUBLIC_URL:-http://localhost:8080}
+      APP_REDIRECT_ORIGINS: ${APP_REDIRECT_ORIGINS:-http://localhost:8081}
     ports:
       - "8080:8080"
     depends_on:

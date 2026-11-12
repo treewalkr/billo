@@ -11,7 +11,7 @@ pub mod resources;
 pub mod rules;
 pub mod sync;
 
-pub use auth::{DevLoginRequest, LoginResponse, MeResponse};
+pub use auth::{AuthMethods, DevLoginRequest, LoginResponse, MeResponse};
 pub use error::{ErrorBody, ErrorCode, ErrorDetail};
 pub use records::{CONFLICT_HEADER, List, Money, Put, Record};
 pub use resources::{

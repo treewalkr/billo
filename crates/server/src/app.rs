@@ -1,5 +1,7 @@
 //! Router construction, separate from `main` so tests can drive it directly.
 
+use std::sync::Arc;
+
 use axum::Router;
 use axum::http::{HeaderValue, Method, header};
 use axum::routing::{get, post};
@@ -7,6 +9,7 @@ use sqlx::PgPool;
 use tower_http::cors::{AllowOrigin, CorsLayer};
 use tower_http::trace::TraceLayer;
 
+use crate::google::Google;
 use crate::routes;
 
 use crate::error;
@@ -22,14 +25,17 @@ pub struct AppState {
     pub db: PgPool,
     /// Registers `POST /api/v1/auth/dev-login`. Never enable in production.
     pub dev_login: bool,
+    /// Registers the Google sign-in routes when set.
+    pub google: Option<Arc<Google>>,
 }
 
 impl AppState {
-    /// State with dev login disabled.
+    /// State with dev login and Google sign-in disabled.
     pub fn new(db: PgPool) -> Self {
         Self {
             db,
             dev_login: false,
+            google: None,
         }
     }
 }
@@ -37,6 +43,7 @@ impl AppState {
 pub fn router(state: AppState) -> Router {
     let mut api = Router::new()
         .route("/health", get(routes::health::health))
+        .route("/auth/methods", get(routes::google::methods))
         .route("/auth/logout", post(routes::auth::logout))
         .route("/me", get(routes::auth::me))
         .merge(resource_routes::<Accounts>("/accounts"))
@@ -47,6 +54,11 @@ pub fn router(state: AppState) -> Router {
         .merge(routes::sync::routes());
     if state.dev_login {
         api = api.route("/auth/dev-login", post(routes::auth::dev_login));
+    }
+    if state.google.is_some() {
+        api = api
+            .route("/auth/google/start", get(routes::google::start))
+            .route("/auth/google/callback", get(routes::google::callback));
     }
     Router::new()
         .nest("/api/v1", api)

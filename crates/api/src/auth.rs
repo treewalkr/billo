@@ -17,6 +17,20 @@ pub struct DevLoginRequest {
 pub struct LoginResponse {
     pub token: String,
     pub user_id: Uuid,
+    /// The account's email. Missing from servers before v0.1.1.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub email: Option<String>,
+}
+
+/// Body of `GET /api/v1/auth/methods`: which ways of signing in this server offers.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub struct AuthMethods {
+    /// Google sign-in (web flow and `POST /auth/google`).
+    #[serde(default)]
+    pub google_sign_in: bool,
+    /// `POST /auth/dev-login` (development servers only).
+    #[serde(default)]
+    pub dev_login: bool,
 }
 
 /// Body of `GET /api/v1/me`.

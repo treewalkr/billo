@@ -1,5 +1,8 @@
+use std::sync::Arc;
+
 use billo_server::app::{AppState, router, with_cors};
 use billo_server::config::Config;
+use billo_server::google::Google;
 use billo_server::routes::health::{VERSION, build_number};
 use sqlx::postgres::PgPoolOptions;
 use tracing_subscriber::EnvFilter;
@@ -29,9 +32,32 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
              NEVER enable this in production."
         );
     }
+    let google = match config.google.clone() {
+        Some(g) => {
+            if g.app_origins.is_empty() {
+                tracing::warn!(
+                    "Google sign-in is on but APP_REDIRECT_ORIGINS is empty: \
+                     the web sign-in flow will refuse every return_to"
+                );
+            }
+            tracing::info!(
+                redirect_uri = %g.redirect_uri,
+                ios = g.ios_client_id.is_some(),
+                "Google sign-in enabled"
+            );
+            Some(Arc::new(Google::new(g)?))
+        }
+        None => {
+            tracing::info!(
+                "Google sign-in disabled (GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET unset)"
+            );
+            None
+        }
+    };
     let state = AppState {
         db,
         dev_login: config.dev_login,
+        google,
     };
     let app = with_cors(router(state), &config.cors_allowed_origins);
     let listener = tokio::net::TcpListener::bind(config.bind_addr).await?;

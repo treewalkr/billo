@@ -18,12 +18,17 @@ sha2 = "0.10"
 time = { version = "0.3", features = ["serde"] }
 uuid = { version = "1", features = ["v7", "serde"] }
 axum = "0.8"
-tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "signal"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "signal", "sync", "time"] }
 tower-http = { version = "0.7", features = ["cors", "trace"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 sqlx = { version = "0.9", default-features = false, features = ["postgres", "runtime-tokio", "tls-rustls", "migrate", "macros", "uuid", "time", "json"] }
 dotenvy = "0.15"
+# Google ID token verification (RS256 against Google's JWKS); aws-lc-rs matches reqwest's TLS backend.
+jsonwebtoken = { version = "11", default-features = false, features = ["aws_lc_rs"] }
+# Calls to Google's token and JWKS endpoints, over rustls.
+reqwest = { version = "0.13", default-features = false, features = ["json", "form", "rustls"] }
+url = "2"
 
 [build-dependencies]
 toml = "1"
@@ -32,6 +37,7 @@ toml = "1"
 tower = { version = "0.5", features = ["util"] }
 http-body-util = "0.1"
 time = { version = "0.3", features = ["serde"] }
+jsonwebtoken = { version = "11", default-features = false, features = ["aws_lc_rs", "use_pem"] }
 
 [lints]
 workspace = true

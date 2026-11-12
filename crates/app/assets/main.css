@@ -60,7 +60,19 @@ main h2 {
 }
 
 #account .main {
+  display: flex;
+  flex-direction: column;
   min-width: 0;
+}
+
+#account .sub {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+#account button {
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 #account .title {

@@ -1,0 +1,24 @@
+[package]
+name = "billo-app"
+description = "Billo app: one Dioxus UI for web, iOS and Android"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+
+[features]
+default = ["web"]
+web = ["dioxus/web"]
+mobile = ["dioxus/mobile"]
+
+[dependencies]
+billo-api = { path = "../api" }
+billo-domain = { path = "../domain" }
+dioxus = { version = "0.7.10" }
+# Plain HTTP only for now (no TLS backend): the browser's fetch on wasm, hyper on native.
+reqwest = { version = "0.13", default-features = false, features = ["json"] }
+time = { version = "0.3", default-features = false, features = ["macros"] }
+
+[lints]
+workspace = true

@@ -1,0 +1,8 @@
+[application]
+
+[web.app]
+title = "Billo"
+
+[bundle]
+identifier = "app.billo.Billo"
+publisher = "Billo"

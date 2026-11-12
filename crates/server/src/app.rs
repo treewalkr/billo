@@ -1,8 +1,10 @@
 //! Router construction, separate from `main` so tests can drive it directly.
 
 use axum::Router;
+use axum::http::{HeaderValue, Method, header};
 use axum::routing::get;
 use sqlx::PgPool;
+use tower_http::cors::{AllowOrigin, CorsLayer};
 use tower_http::trace::TraceLayer;
 
 use crate::routes;
@@ -17,4 +19,67 @@ pub fn router(state: AppState) -> Router {
         .route("/api/v1/health", get(routes::health::health))
         .layer(TraceLayer::new_for_http())
         .with_state(state)
+}
+
+/// Lets the listed browser origins call the API. Meant for development (the web app
+/// served by `dx serve` on another port); with no origins the router is unchanged.
+pub fn with_cors(router: Router, origins: &[HeaderValue]) -> Router {
+    if origins.is_empty() {
+        return router;
+    }
+    router.layer(
+        CorsLayer::new()
+            .allow_origin(AllowOrigin::list(origins.iter().cloned()))
+            .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE])
+            .allow_headers([header::CONTENT_TYPE, header::AUTHORIZATION]),
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::body::Body;
+    use axum::http::{Request, StatusCode};
+    use tower::ServiceExt;
+
+    fn plain() -> Router {
+        Router::new().route("/ping", get(|| async { "pong" }))
+    }
+
+    async fn allow_origin(app: Router, origin: &str) -> Option<HeaderValue> {
+        let res = app
+            .oneshot(
+                Request::get("/ping")
+                    .header(header::ORIGIN, origin)
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(res.status(), StatusCode::OK);
+        res.headers()
+            .get(header::ACCESS_CONTROL_ALLOW_ORIGIN)
+            .cloned()
+    }
+
+    #[tokio::test]
+    async fn no_origins_means_no_cors_headers() {
+        assert_eq!(
+            allow_origin(with_cors(plain(), &[]), "http://localhost:8081").await,
+            None
+        );
+    }
+
+    #[tokio::test]
+    async fn allows_listed_origin_only() {
+        let origins = [HeaderValue::from_static("http://localhost:8081")];
+        assert_eq!(
+            allow_origin(with_cors(plain(), &origins), "http://localhost:8081").await,
+            Some(HeaderValue::from_static("http://localhost:8081"))
+        );
+        assert_eq!(
+            allow_origin(with_cors(plain(), &origins), "http://evil.example").await,
+            None
+        );
+    }
 }

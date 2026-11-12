@@ -1,4 +1,4 @@
-use billo_server::app::{AppState, router};
+use billo_server::app::{AppState, router, with_cors};
 use billo_server::config::Config;
 use billo_server::routes::health::{VERSION, build_number};
 use sqlx::postgres::PgPoolOptions;
@@ -23,7 +23,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .await?;
     billo_server::MIGRATOR.run(&db).await?;
 
-    let app = router(AppState { db });
+    let app = with_cors(router(AppState { db }), &config.cors_allowed_origins);
     let listener = tokio::net::TcpListener::bind(config.bind_addr).await?;
     tracing::info!(
         addr = %config.bind_addr,

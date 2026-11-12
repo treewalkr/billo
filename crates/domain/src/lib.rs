@@ -3,6 +3,7 @@
 //! No I/O, no clock, no randomness. Every input (including "today") is passed in.
 
 pub mod money;
+pub mod planner;
 
 pub use money::{Currency, Money, MoneyError};
 

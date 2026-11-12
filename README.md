@@ -48,6 +48,10 @@ curl -X POST localhost:8080/api/v1/auth/dev-login \
 curl localhost:8080/api/v1/accounts -H "authorization: Bearer $TOKEN"
 ```
 
+### API docs
+
+With `API_DOCS=true` (set by the compose file and `.env.example`) the server serves an API reference generated from the code at <http://localhost:8080/api/docs>, and the OpenAPI spec at `/api/openapi.json`. Both are off by default. To try authed routes there, sign in with dev login and paste the token into the Bearer field.
+
 Web app (needs the [Dioxus CLI](https://dioxuslabs.com/learn/0.7/getting_started): `cargo install dioxus-cli --version 0.7.10 --locked`):
 
 ```bash

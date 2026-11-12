@@ -144,6 +144,7 @@ async fn setup() -> Option<T> {
         db: db.clone(),
         dev_login: false,
         google: Some(Arc::new(google)),
+        api_docs: false,
     });
     Some(T { app, db, mock })
 }

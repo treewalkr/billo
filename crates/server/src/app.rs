@@ -6,8 +6,10 @@ use aide::axum::ApiRouter;
 use aide::axum::routing::{get_with, post_with};
 use aide::openapi::{OpenApi, SecurityScheme};
 use axum::Router;
+use axum::body::Bytes;
 use axum::http::{HeaderValue, Method, header};
-use axum::response::NoContent;
+use axum::response::{Html, NoContent};
+use axum::routing::get;
 use sqlx::PgPool;
 use tower_http::cors::{AllowOrigin, CorsLayer};
 use tower_http::trace::TraceLayer;
@@ -31,18 +33,26 @@ pub struct AppState {
     pub dev_login: bool,
     /// Registers the Google sign-in routes when set.
     pub google: Option<Arc<Google>>,
+    /// Serves the OpenAPI spec at [`OPENAPI_PATH`] and Scalar docs at [`DOCS_PATH`].
+    pub api_docs: bool,
 }
 
 impl AppState {
-    /// State with dev login and Google sign-in disabled.
+    /// State with dev login, Google sign-in and the API docs disabled.
     pub fn new(db: PgPool) -> Self {
         Self {
             db,
             dev_login: false,
             google: None,
+            api_docs: false,
         }
     }
 }
+
+/// The OpenAPI spec, when `api_docs` is on. Outside `/api/v1`: not part of the contract.
+pub const OPENAPI_PATH: &str = "/api/openapi.json";
+/// The Scalar API reference page, when `api_docs` is on.
+pub const DOCS_PATH: &str = "/api/docs";
 
 pub fn router(state: AppState) -> Router {
     let (router, _docs) = router_and_docs(state);
@@ -158,7 +168,7 @@ pub fn router_and_docs(state: AppState) -> (Router, OpenApi) {
     }
 
     let mut docs = OpenApi::default();
-    let router = ApiRouter::new()
+    let mut router = ApiRouter::new()
         .nest("/api/v1", api)
         .finish_api_with(&mut docs, |t| {
             t.title("Billo API")
@@ -177,11 +187,31 @@ pub fn router_and_docs(state: AppState) -> (Router, OpenApi) {
                         extensions: Default::default(),
                     },
                 )
-        })
+        });
+    if state.api_docs {
+        router = router.merge(docs_routes(&docs));
+    }
+    let router = router
         .fallback(error::not_found)
         .layer(TraceLayer::new_for_http())
         .with_state(state);
     (router, docs)
+}
+
+/// The spec (serialised once) and the Scalar page that renders it.
+fn docs_routes(docs: &OpenApi) -> Router<AppState> {
+    let spec = Bytes::from(serde_json::to_vec(docs).expect("the OpenAPI spec serialises"));
+    let page = Bytes::from(
+        aide::scalar::Scalar::new(OPENAPI_PATH)
+            .with_title("Billo API")
+            .html(),
+    );
+    Router::new()
+        .route(
+            OPENAPI_PATH,
+            get(move || async move { ([(header::CONTENT_TYPE, "application/json")], spec) }),
+        )
+        .route(DOCS_PATH, get(move || async move { Html(page) }))
 }
 
 /// Lets the listed browser origins call the API. Meant for development (the web app
@@ -203,6 +233,7 @@ mod tests {
     use super::*;
     use axum::body::Body;
     use axum::http::{Request, StatusCode};
+    use http_body_util::BodyExt;
     use tower::ServiceExt;
 
     /// The router's docs, optionally with every optional route on. No database or
@@ -285,8 +316,53 @@ mod tests {
         assert!(paths["/api/v1/auth/dev-login"].is_null());
     }
 
+    async fn get_docs(api_docs: bool, path: &str) -> (StatusCode, String, Bytes) {
+        let db = PgPool::connect_lazy("postgres://localhost/unused").unwrap();
+        let res = router(AppState {
+            api_docs,
+            ..AppState::new(db)
+        })
+        .oneshot(Request::get(path).body(Body::empty()).unwrap())
+        .await
+        .unwrap();
+        let content_type = res
+            .headers()
+            .get(header::CONTENT_TYPE)
+            .map(|v| v.to_str().unwrap().to_owned())
+            .unwrap_or_default();
+        let status = res.status();
+        let body = res.into_body().collect().await.unwrap().to_bytes();
+        (status, content_type, body)
+    }
+
+    #[tokio::test]
+    async fn serves_docs_when_enabled() {
+        let (status, content_type, body) = get_docs(true, OPENAPI_PATH).await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(content_type, "application/json");
+        let spec: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(spec["info"]["title"], "Billo API");
+        assert!(spec["paths"]["/api/v1/accounts/{id}"].is_object());
+
+        let (status, content_type, body) = get_docs(true, DOCS_PATH).await;
+        assert_eq!(status, StatusCode::OK);
+        assert!(content_type.starts_with("text/html"), "{content_type}");
+        assert!(String::from_utf8_lossy(&body).contains(OPENAPI_PATH));
+    }
+
+    #[tokio::test]
+    async fn no_docs_when_disabled() {
+        for path in [OPENAPI_PATH, DOCS_PATH] {
+            let (status, content_type, body) = get_docs(false, path).await;
+            assert_eq!(status, StatusCode::NOT_FOUND, "{path}");
+            assert_eq!(content_type, "application/json");
+            let body: serde_json::Value = serde_json::from_slice(&body).unwrap();
+            assert_eq!(body["error"]["code"], "not_found");
+        }
+    }
+
     fn plain() -> Router {
-        Router::new().route("/ping", axum::routing::get(|| async { "pong" }))
+        Router::new().route("/ping", get(|| async { "pong" }))
     }
 
     async fn allow_origin(app: Router, origin: &str) -> Option<HeaderValue> {

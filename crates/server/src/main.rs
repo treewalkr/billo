@@ -54,10 +54,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             None
         }
     };
+    if config.api_docs {
+        tracing::info!("API_DOCS=true: API reference at /api/docs, spec at /api/openapi.json");
+    }
     let state = AppState {
         db,
         dev_login: config.dev_login,
         google,
+        api_docs: config.api_docs,
     };
     let app = with_cors(router(state), &config.cors_allowed_origins);
     let listener = tokio::net::TcpListener::bind(config.bind_addr).await?;

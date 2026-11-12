@@ -57,6 +57,7 @@ pub async fn app_with(dev_login: bool) -> Option<TestApp> {
         db: db.clone(),
         dev_login,
         google: None,
+        api_docs: false,
     });
     Some(TestApp { db, app })
 }

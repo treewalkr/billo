@@ -459,12 +459,54 @@ pub fn LanguageSwitch() -> Element {
     }
 }
 
-/// An error message with an optional retry button.
+/// An error for the user, with the raw error (if any) for a "Details" line.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Problem {
+    pub message: String,
+    pub details: Option<String>,
+}
+
+impl From<String> for Problem {
+    fn from(message: String) -> Self {
+        Self {
+            message,
+            details: None,
+        }
+    }
+}
+
+impl From<&str> for Problem {
+    fn from(message: &str) -> Self {
+        message.to_owned().into()
+    }
+}
+
+impl From<ApiError> for Problem {
+    fn from(e: ApiError) -> Self {
+        Self {
+            message: e.to_string(),
+            details: e.details(),
+        }
+    }
+}
+
+/// An error message with an optional retry button, and the raw error behind a
+/// "Details" toggle.
 #[component]
-pub fn ErrorBox(message: String, on_retry: Option<EventHandler<()>>) -> Element {
+pub fn ErrorBox(
+    message: String,
+    #[props(default)] details: Option<String>,
+    on_retry: Option<EventHandler<()>>,
+) -> Element {
     rsx! {
         div { class: "error-box", role: "alert",
             p { "{message}" }
+            if let Some(details) = details {
+                details { class: "error-details",
+                    summary { "{s::error_details()}" }
+                    code { "{details}" }
+                }
+            }
             if let Some(retry) = on_retry {
                 button { class: "secondary", onclick: move |_| retry.call(()), "{s::retry()}" }
             }

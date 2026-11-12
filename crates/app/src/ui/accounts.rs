@@ -8,7 +8,7 @@ use uuid::Uuid;
 
 use super::plans::PlanList;
 use super::transactions::TransactionList;
-use super::{ErrorBox, Loading, Screen, use_nav};
+use super::{ErrorBox, Loading, Problem, Screen, use_nav};
 use crate::forms::is_card_like;
 use crate::store::use_store;
 use crate::{format, strings as s};
@@ -62,7 +62,7 @@ pub fn Accounts() -> Element {
     let body = match &*accounts.read() {
         None => rsx! { Loading {} },
         Some(Err(e)) => rsx! {
-            ErrorBox { message: e.to_string(), on_retry: move |_| accounts.restart() }
+            ErrorBox { message: e.to_string(), details: e.details(), on_retry: move |_| accounts.restart() }
         },
         Some(Ok(list)) if list.is_empty() => rsx! {
             p { class: "empty", "{s::no_accounts()}" }
@@ -124,7 +124,7 @@ pub fn AccountPage(id: Uuid) -> Element {
         Some(Err(e)) => {
             return rsx! {
                 BackLink { to: Screen::Accounts }
-                ErrorBox { message: e.to_string(), on_retry: move |_| account.restart() }
+                ErrorBox { message: e.to_string(), details: e.details(), on_retry: move |_| account.restart() }
             };
         }
         Some(Ok(r)) => r.clone(),
@@ -237,7 +237,7 @@ fn AccountActions(record: Record<AccountData>) -> Element {
     let store = use_store();
     let mut nav = use_nav();
     let mut confirm = use_signal(|| false);
-    let mut error = use_signal(|| None::<String>);
+    let mut error = use_signal(|| None::<Problem>);
     let id = record.id;
     let delete = move |_| {
         if !confirm() {
@@ -250,13 +250,13 @@ fn AccountActions(record: Record<AccountData>) -> Element {
                 .await
             {
                 Ok(()) => nav.set(Screen::Accounts),
-                Err(e) => error.set(Some(e.to_string())),
+                Err(e) => error.set(Some(e.into())),
             }
         });
     };
     rsx! {
         if let Some(msg) = error() {
-            ErrorBox { message: msg }
+            ErrorBox { message: msg.message, details: msg.details }
         }
         div { class: "actions",
             button {

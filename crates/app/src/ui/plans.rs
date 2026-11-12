@@ -5,7 +5,7 @@ use dioxus::prelude::*;
 
 use super::accounts::BackLink;
 use super::fields::{NumberField, TextField};
-use super::{ErrorBox, Loading, Screen, use_nav};
+use super::{ErrorBox, Loading, Problem, Screen, use_nav};
 use crate::forms::PlanDraft;
 use crate::store::use_store;
 use crate::{api, clock, convert, format, strings as s};
@@ -59,7 +59,7 @@ pub fn PlanList(account: Record<AccountData>) -> Element {
     let body = match &*plans.read() {
         None => rsx! { Loading {} },
         Some(Err(e)) => rsx! {
-            ErrorBox { message: e.to_string(), on_retry: move |_| plans.restart() }
+            ErrorBox { message: e.to_string(), details: e.details(), on_retry: move |_| plans.restart() }
         },
         Some(Ok(list)) if list.is_empty() => rsx! { p { class: "empty", "{s::no_plans()}" } },
         Some(Ok(list)) => rsx! {
@@ -112,7 +112,7 @@ pub fn PlanForm(
         Some(p) => PlanDraft::from_data(&p.data),
         None => PlanDraft::new(today),
     });
-    let mut error = use_signal(|| None::<String>);
+    let mut error = use_signal(|| None::<Problem>);
     let mut busy = use_signal(|| false);
     let mut confirm = use_signal(|| false);
     let new_id = use_hook(api::new_id);
@@ -125,7 +125,7 @@ pub fn PlanForm(
         let data = match draft.read().to_data(card_id, &currency) {
             Ok(d) => d,
             Err(msg) => {
-                error.set(Some(msg));
+                error.set(Some(msg.into()));
                 return;
             }
         };
@@ -137,7 +137,7 @@ pub fn PlanForm(
                 .await
             {
                 Ok(_) => nav.set(Screen::Account(card_id)),
-                Err(e) => error.set(Some(e.to_string())),
+                Err(e) => error.set(Some(e.into())),
             }
             busy.set(false);
         });
@@ -153,7 +153,7 @@ pub fn PlanForm(
                 .await
             {
                 Ok(()) => nav.set(Screen::Account(card_id)),
-                Err(e) => error.set(Some(e.to_string())),
+                Err(e) => error.set(Some(e.into())),
             }
         });
     };
@@ -200,7 +200,7 @@ pub fn PlanForm(
                 oninput: move |v| draft.write().first_post_on = v,
             }
             if let Some(msg) = error() {
-                ErrorBox { message: msg }
+                ErrorBox { message: msg.message, details: msg.details }
             }
             button { r#type: "submit", id: "save-plan", disabled: busy(), "{s::save()}" }
             if existing.is_some() {

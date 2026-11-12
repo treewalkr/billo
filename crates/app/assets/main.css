@@ -616,3 +616,20 @@ li.over .left {
   clip: rect(0 0 0 0);
   white-space: nowrap;
 }
+
+.error-details {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.error-details summary {
+  cursor: pointer;
+}
+
+.error-details code {
+  display: block;
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}

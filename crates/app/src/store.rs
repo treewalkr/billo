@@ -48,11 +48,13 @@ pub struct SyncInfo {
     /// The last sync couldn't reach the server.
     pub unreachable: bool,
     /// The last sync failed otherwise.
-    pub error: Option<String>,
+    pub error: Option<ApiError>,
     /// Changes the server applied over someone else's newer version, not yet noticed.
     pub conflicts: u32,
     /// Changes the server rejected (and that were undone), not yet noticed.
     pub rejected: u32,
+    /// Why the latest of them was rejected.
+    pub rejection: Option<ApiError>,
     /// The local database couldn't be opened; data lives in memory only.
     pub store_failed: bool,
 }
@@ -66,6 +68,7 @@ impl Default for SyncInfo {
             error: None,
             conflicts: 0,
             rejected: 0,
+            rejection: None,
             store_failed: false,
         }
     }
@@ -281,6 +284,7 @@ impl Store {
         let mut info = self.info.write();
         info.conflicts = 0;
         info.rejected = 0;
+        info.rejection = None;
     }
 
     pub fn send(&self, msg: SyncMsg) {
@@ -338,12 +342,15 @@ impl Store {
                 info.error = None;
                 info.conflicts += report.pushed.conflicts;
                 info.rejected += report.pushed.rejected;
+                if let Some(d) = &report.pushed.rejection {
+                    info.rejection = Some(api::error_from_detail(d));
+                }
             }
             Err(ApiError::Network(_)) => info.unreachable = true,
             Err(ApiError::Unauthorized) => {}
             Err(e) => {
                 info.unreachable = false;
-                info.error = Some(e.to_string());
+                info.error = Some(e.clone());
             }
         }
         drop(info);
@@ -559,7 +566,7 @@ mod tests {
         let mut info = SyncInfo::default();
         assert_eq!(info.status(0), SyncStatus::Synced);
         assert_eq!(info.status(2), SyncStatus::Waiting(2));
-        info.error = Some("x".into());
+        info.error = Some(ApiError::Server(500, "x".into()));
         assert_eq!(info.status(2), SyncStatus::Error(2));
         info.unreachable = true;
         assert_eq!(info.status(1), SyncStatus::Offline(1));
@@ -575,7 +582,7 @@ mod tests {
         let mut info = SyncInfo::default();
         assert_eq!(sign_out_check(&info, 0), SignOutCheck::Clear);
         // A failed push (e.g. server error) leaves changes waiting: ask first.
-        info.error = Some("boom".into());
+        info.error = Some(ApiError::Server(500, "boom".into()));
         assert_eq!(
             sign_out_check(&info, 3),
             SignOutCheck::Confirm {

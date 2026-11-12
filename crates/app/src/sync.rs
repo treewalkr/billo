@@ -32,7 +32,7 @@ impl Remote for Client {
 }
 
 /// What one sync did.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct SyncReport {
     pub pushed: PushSummary,
     /// Records changed by the pull.
@@ -63,6 +63,9 @@ pub async fn sync_once<R: Remote>(
         p.acked += summary.acked;
         p.conflicts += summary.conflicts;
         p.rejected += summary.rejected;
+        if summary.rejection.is_some() {
+            p.rejection = summary.rejection;
+        }
         if summary.retry {
             p.retry = true;
             return Err(ApiError::Server(
@@ -529,6 +532,11 @@ mod tests {
         let report = dev.sync(&server).unwrap();
         assert_eq!(report.pushed.rejected, 2);
         assert_eq!(report.pushed.acked, 1);
+        // The reason is kept for the notice.
+        assert_eq!(
+            report.pushed.rejection.as_ref().map(|e| e.message.as_str()),
+            Some("rejected")
+        );
         assert_eq!(dev.pending(), 0);
         // The edit is undone, the never-accepted record is gone, the rest went through.
         assert_eq!(dev.name(kept).as_deref(), Some("Wallet"));

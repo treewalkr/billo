@@ -37,7 +37,7 @@ pub fn Home() -> Element {
     let body = match &*data.read() {
         None => rsx! { Loading {} },
         Some(Err(e)) => rsx! {
-            ErrorBox { message: e.to_string(), on_retry: move |_| data.restart() }
+            ErrorBox { message: e.to_string(), details: e.details(), on_retry: move |_| data.restart() }
         },
         Some(Ok((_, true, _))) => rsx! {
             div { class: "empty",

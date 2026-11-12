@@ -4,7 +4,8 @@ use dioxus::prelude::*;
 
 use super::sync::SyncCard;
 use super::{
-    ErrorBox, LanguageSwitch, Screen, sign_out, use_auth, use_holidays, use_nav, use_sign_out,
+    ErrorBox, LanguageSwitch, Problem, Screen, sign_out, use_auth, use_holidays, use_nav,
+    use_sign_out,
 };
 use crate::api::{self, Client};
 use crate::store::use_store;
@@ -104,7 +105,7 @@ fn HolidaysCard() -> Element {
     let holidays = use_holidays();
     let list = holidays.get();
     let mut text = use_signal(String::new);
-    let mut error = use_signal(|| None::<String>);
+    let mut error = use_signal(|| None::<Problem>);
     let add = move |e: FormEvent| {
         e.prevent_default();
         match input::field(s::holiday_date(), input::parse_date(&text())) {
@@ -113,7 +114,7 @@ fn HolidaysCard() -> Element {
                 text.set(String::new());
                 error.set(None);
             }
-            Err(msg) => error.set(Some(msg)),
+            Err(msg) => error.set(Some(msg.into())),
         }
     };
     rsx! {
@@ -151,7 +152,7 @@ fn HolidaysCard() -> Element {
                 button { r#type: "submit", class: "secondary", id: "add-holiday", "{s::add()}" }
             }
             if let Some(msg) = error() {
-                ErrorBox { message: msg }
+                ErrorBox { message: msg.message, details: msg.details }
             }
             p { class: "note", "{s::holidays_device_only()}" }
         }

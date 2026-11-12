@@ -8,8 +8,8 @@
 
 use std::collections::{BTreeMap, HashMap};
 
-use billo_api::ErrorCode;
 use billo_api::sync::{Entity, EntityState, Mutation, MutationOp, MutationResult, PullResponse};
+use billo_api::{ErrorCode, ErrorDetail};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use time::OffsetDateTime;
@@ -88,7 +88,7 @@ pub trait Backend {
 }
 
 /// What a push changed.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct PushSummary {
     /// Mutations the server applied (now or before).
     pub acked: u32,
@@ -98,6 +98,8 @@ pub struct PushSummary {
     pub rejected: u32,
     /// The server failed on a mutation; it and the rest stay queued.
     pub retry: bool,
+    /// Why the last rejected mutation was rejected (the server's code and message).
+    pub rejection: Option<ErrorDetail>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -347,6 +349,7 @@ impl LocalState {
                 }
             } else {
                 summary.rejected += 1;
+                summary.rejection.clone_from(&r.error);
             }
             if self.has_pending(entity, id) {
                 continue;

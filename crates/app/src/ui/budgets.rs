@@ -7,7 +7,7 @@ use dioxus::prelude::*;
 use uuid::Uuid;
 
 use super::fields::NumberField;
-use super::{ErrorBox, Loading, Screen, use_nav};
+use super::{ErrorBox, Loading, Problem, Screen, use_nav};
 use crate::budgets::{self, CURRENCY, Key};
 use crate::input::{field, parse_amount};
 use crate::store::use_store;
@@ -212,7 +212,7 @@ fn BudgetRow(row: Row, first: time::Date, on_saved: EventHandler<()>) -> Element
     let store = use_store();
     let mut editing = use_signal(|| false);
     let mut text = use_signal(String::new);
-    let mut error = use_signal(|| None::<String>);
+    let mut error = use_signal(|| None::<Problem>);
     let mut busy = use_signal(|| false);
     let new_id = use_hook(api::new_id);
     let category_id = row.id;
@@ -227,7 +227,7 @@ fn BudgetRow(row: Row, first: time::Date, on_saved: EventHandler<()>) -> Element
         ) {
             Ok(m) => m,
             Err(msg) => {
-                error.set(Some(msg));
+                error.set(Some(msg.into()));
                 return;
             }
         };
@@ -246,7 +246,7 @@ fn BudgetRow(row: Row, first: time::Date, on_saved: EventHandler<()>) -> Element
                     editing.set(false);
                     on_saved.call(());
                 }
-                Err(e) => error.set(Some(e.to_string())),
+                Err(e) => error.set(Some(e.into())),
             }
             busy.set(false);
         });
@@ -262,7 +262,7 @@ fn BudgetRow(row: Row, first: time::Date, on_saved: EventHandler<()>) -> Element
                     editing.set(false);
                     on_saved.call(());
                 }
-                Err(e) => error.set(Some(e.to_string())),
+                Err(e) => error.set(Some(e.into())),
             }
             busy.set(false);
         });
@@ -308,7 +308,7 @@ fn BudgetRow(row: Row, first: time::Date, on_saved: EventHandler<()>) -> Element
                         oninput: move |v| text.set(v),
                     }
                     if let Some(msg) = error() {
-                        ErrorBox { message: msg }
+                        ErrorBox { message: msg.message, details: msg.details }
                     }
                     div { class: "actions",
                         button { r#type: "submit", class: "save-limit", disabled: busy(), "{s::save()}" }

@@ -6,7 +6,7 @@ use dioxus::prelude::*;
 
 use super::accounts::BackLink;
 use super::fields::{CheckField, NumberField, SelectField, TextField};
-use super::{ErrorBox, Screen, use_nav};
+use super::{ErrorBox, Problem, Screen, use_nav};
 use crate::forms::{AccountDraft, CURRENCIES, DueMode, from_key, is_card_like, key};
 use crate::store::use_store;
 use crate::{api, clock, strings as s};
@@ -89,7 +89,7 @@ pub fn AccountForm(kind: AccountKind, existing: Option<Record<AccountData>>) -> 
         Some(r) => AccountDraft::from_data(&r.data, today),
         None => AccountDraft::new(kind, today),
     });
-    let mut error = use_signal(|| None::<String>);
+    let mut error = use_signal(|| None::<Problem>);
     let mut busy = use_signal(|| false);
 
     let new_id = use_hook(api::new_id);
@@ -104,7 +104,7 @@ pub fn AccountForm(kind: AccountKind, existing: Option<Record<AccountData>>) -> 
         let data = match draft.read().to_data() {
             Ok(d) => d,
             Err(msg) => {
-                error.set(Some(msg));
+                error.set(Some(msg.into()));
                 return;
             }
         };
@@ -116,7 +116,7 @@ pub fn AccountForm(kind: AccountKind, existing: Option<Record<AccountData>>) -> 
                 .await
             {
                 Ok(saved) => nav.set(Screen::Account(saved.id)),
-                Err(e) => error.set(Some(e.to_string())),
+                Err(e) => error.set(Some(e.into())),
             }
             busy.set(false);
         });
@@ -158,7 +158,7 @@ pub fn AccountForm(kind: AccountKind, existing: Option<Record<AccountData>>) -> 
                 LoanFields { draft }
             }
             if let Some(msg) = error() {
-                ErrorBox { message: msg }
+                ErrorBox { message: msg.message, details: msg.details }
             }
             button { r#type: "submit", id: "save-account", disabled: busy(), "{s::save()}" }
         }

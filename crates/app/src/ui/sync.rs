@@ -139,7 +139,14 @@ pub fn SyncIndicator() -> Element {
     let store = use_store();
     let status = store.status();
     let (state, text) = status_text(status);
-    let title = store.info().error.unwrap_or_default();
+    let title = store
+        .info()
+        .error
+        .map(|e| match e.details() {
+            Some(d) => format!("{e} ({d})"),
+            None => e.to_string(),
+        })
+        .unwrap_or_default();
     rsx! {
         span {
             class: "sync-status {state}",
@@ -170,6 +177,15 @@ pub fn SyncNotices() -> Element {
             }
             if info.rejected > 0 {
                 p { id: "rejected-notice", "{s::rejected_notice(info.rejected)}" }
+                if let Some(e) = info.rejection.clone() {
+                    p { id: "rejected-reason", "{e}" }
+                    if let Some(d) = e.details() {
+                        details { class: "error-details",
+                            summary { "{s::error_details()}" }
+                            code { "{d}" }
+                        }
+                    }
+                }
             }
             if info.conflicts > 0 || info.rejected > 0 {
                 button { class: "link", id: "dismiss-sync-notice", onclick: move |_| store.dismiss_notices(), "{s::dismiss()}" }
@@ -182,7 +198,8 @@ pub fn SyncNotices() -> Element {
 #[component]
 pub fn SyncCard() -> Element {
     let store = use_store();
-    let syncing = store.info().syncing;
+    let info = store.info();
+    let syncing = info.syncing;
     rsx! {
         section { class: "card", id: "sync",
             div { class: "card-head",
@@ -196,6 +213,11 @@ pub fn SyncCard() -> Element {
                     disabled: syncing,
                     onclick: move |_| store.send(SyncMsg::Now),
                     "{s::sync_now()}"
+                }
+            }
+            if let (Some(e), false) = (info.error, syncing) {
+                div { id: "sync-error",
+                    super::ErrorBox { message: e.to_string(), details: e.details() }
                 }
             }
         }

@@ -7,7 +7,7 @@
 use std::sync::atomic::{AtomicU8, Ordering};
 
 use billo_api::rules::{DayCount, DueShift, InterestStart, LoanMethod};
-use billo_api::{AccountKind, CategoryKind, TransactionKind};
+use billo_api::{AccountKind, CategoryKind, ErrorCode, TransactionKind};
 use serde::{Deserialize, Serialize};
 
 pub const APP_NAME: &str = "Billo";
@@ -307,10 +307,12 @@ table! {
     language: "Language", "ภาษา";
     err_network: "Can't reach the server", "เชื่อมต่อเซิร์ฟเวอร์ไม่ได้";
     err_session_ended: "Your session has ended. Please sign in again.", "เซสชันหมดอายุแล้ว กรุณาเข้าสู่ระบบอีกครั้ง";
-    err_not_found: "Not found", "ไม่พบข้อมูล";
-    err_not_saved: "Not saved", "บันทึกไม่สำเร็จ";
-    err_conflict: "Conflict", "ข้อมูลขัดแย้งกัน";
-    err_server: "Server error", "เซิร์ฟเวอร์ขัดข้อง";
+    err_not_found: "This item wasn't found on the server.", "ไม่พบรายการนี้บนเซิร์ฟเวอร์";
+    err_not_saved: "The server didn't accept this", "เซิร์ฟเวอร์ไม่รับข้อมูลนี้";
+    err_conflict: "This clashes with data already on the server.", "ข้อมูลนี้ขัดแย้งกับข้อมูลที่มีอยู่บนเซิร์ฟเวอร์";
+    err_server: "Something went wrong on the server. Please try again later.", "เซิร์ฟเวอร์ขัดข้อง กรุณาลองใหม่ภายหลัง";
+    err_check_input: "The server didn't accept this. Please check what you entered.", "เซิร์ฟเวอร์ไม่รับข้อมูลนี้ กรุณาตรวจสอบข้อมูลที่กรอก";
+    error_details: "Details", "รายละเอียด";
     err_decode: "Unexpected response from the server", "เซิร์ฟเวอร์ตอบกลับในรูปแบบที่ไม่รองรับ";
     required: "required", "จำเป็นต้องกรอก";
     not_a_number: "not a number", "ไม่ใช่ตัวเลข";
@@ -458,6 +460,276 @@ pub fn version_build(version: &str, build: u32) -> String {
     format!("v{version} ({build})")
 }
 
+/// What a server error code means, in plain words.
+pub fn error_code_text(code: ErrorCode) -> &'static str {
+    match code {
+        ErrorCode::NotFound => err_not_found(),
+        ErrorCode::Validation => err_not_saved(),
+        ErrorCode::Unauthorized => err_session_ended(),
+        ErrorCode::Conflict => err_conflict(),
+        ErrorCode::Internal => err_server(),
+    }
+}
+
+/// Field names in the server's validation messages (`"field: problem"`), as
+/// `(field, English, Thai)`.
+const ERROR_FIELDS: &[(&str, &str, &str)] = &[
+    ("name", "Name", "ชื่อ"),
+    ("name_th", "Thai name", "ชื่อภาษาไทย"),
+    ("name_en", "English name", "ชื่อภาษาอังกฤษ"),
+    (
+        "name_th or name_en",
+        "Thai or English name",
+        "ชื่อภาษาไทยหรือภาษาอังกฤษ",
+    ),
+    ("amount", "Amount", "จำนวนเงิน"),
+    ("amount.currency", "Currency", "สกุลเงิน"),
+    ("orig_amount", "Original amount", "จำนวนเงินสกุลเดิม"),
+    ("principal", "Amount", "ยอดเงินต้น"),
+    ("principal.currency", "Currency", "สกุลเงิน"),
+    ("currency", "Currency", "สกุลเงิน"),
+    ("note", "Note", "บันทึก"),
+    ("account_id", "Account", "บัญชี"),
+    ("card_account_id", "Card", "บัตร"),
+    ("category_id", "Category", "หมวดหมู่"),
+    ("parent_id", "Main category", "หมวดหมู่หลัก"),
+    ("installment_plan_id", "Installment plan", "รายการผ่อน"),
+    ("installment plan", "Installment plan", "รายการผ่อน"),
+    ("transfer_peer_id", "Linked transfer", "รายการโอนที่เชื่อมกัน"),
+    ("closed_on", "Closing date", "วันที่ปิด"),
+    ("limit", "Budget", "งบ"),
+    ("period_month", "Month", "เดือน"),
+    ("rules.card", "Card settings", "การตั้งค่าบัตร"),
+    ("rules.card.min_payment", "Minimum payment", "ยอดชำระขั้นต่ำ"),
+    (
+        "rules.card.min_payment.rounding",
+        "Minimum payment rounding",
+        "การปัดเศษยอดชำระขั้นต่ำ",
+    ),
+    ("rules.card.interest", "Card interest", "ดอกเบี้ยบัตร"),
+    (
+        "rules.card.interest.rounding",
+        "Interest rounding",
+        "การปัดเศษดอกเบี้ย",
+    ),
+    ("rules.card.credit_limit_minor", "Credit limit", "วงเงิน"),
+    ("rules.loan", "Loan settings", "การตั้งค่าสินเชื่อ"),
+    ("rules.loan.rounding", "Loan rounding", "การปัดเศษสินเชื่อ"),
+    (
+        "rules.loan.installment_minor",
+        "Monthly installment",
+        "ค่างวด",
+    ),
+    ("rules.v", "Settings", "การตั้งค่า"),
+    ("payload", "Change", "ข้อมูลที่ส่ง"),
+    ("mutations", "Changes", "การเปลี่ยนแปลง"),
+];
+
+/// Problems in the server's validation messages and the domain errors behind them, as
+/// `(message prefix, English, Thai)`. Matched on the start of the message, so ones
+/// with values (`got 0`) match too.
+const ERROR_PROBLEMS: &[(&str, &str, &str)] = &[
+    // Server checks.
+    ("required", "is required", "ต้องกรอก"),
+    ("too long", "is too long", "ยาวเกินไป"),
+    ("must be positive", "must be more than zero", "ต้องมากกว่าศูนย์"),
+    ("must not be zero", "can't be zero", "ต้องไม่เป็นศูนย์"),
+    ("must not be negative", "can't be negative", "ต้องไม่ติดลบ"),
+    (
+        "unknown currency code",
+        "isn't a known currency",
+        "ไม่ใช่สกุลเงินที่รองรับ",
+    ),
+    ("no such account", "no longer exists", "ไม่มีบัญชีนี้แล้ว"),
+    ("no such category", "no longer exists", "ไม่มีหมวดหมู่นี้แล้ว"),
+    ("no such plan", "no longer exists", "ไม่มีรายการผ่อนนี้แล้ว"),
+    (
+        "before opened_on",
+        "is before the opening date",
+        "อยู่ก่อนวันที่เปิด",
+    ),
+    (
+        "before first_post_on",
+        "is before the first payment",
+        "อยู่ก่อนงวดแรก",
+    ),
+    (
+        "only for transfers",
+        "is only for transfers",
+        "ใช้ได้กับการโอนเท่านั้น",
+    ),
+    (
+        "only for loan accounts",
+        "are only for loans",
+        "ใช้ได้กับสินเชื่อเท่านั้น",
+    ),
+    (
+        "only for card and revolving accounts",
+        "are only for cards and cash cards",
+        "ใช้ได้กับบัตรเครดิตและบัตรกดเงินสดเท่านั้น",
+    ),
+    (
+        "must be the account's currency",
+        "must match the account's currency",
+        "ต้องตรงกับสกุลเงินของบัญชี",
+    ),
+    (
+        "must be the card's currency",
+        "must match the card's currency",
+        "ต้องตรงกับสกุลเงินของบัตร",
+    ),
+    (
+        "plan belongs to another account",
+        "belongs to another card",
+        "เป็นของบัตรอื่น",
+    ),
+    (
+        "not a card or revolving account",
+        "isn't a card or cash card",
+        "ไม่ใช่บัตรเครดิตหรือบัตรกดเงินสด",
+    ),
+    (
+        "must be the first day of a month",
+        "must be the first day of a month",
+        "ต้องเป็นวันแรกของเดือน",
+    ),
+    (
+        "unsupported version",
+        "come from a newer version of Billo",
+        "มาจาก Billo รุ่นที่ใหม่กว่า",
+    ),
+    ("at most", "too many at once", "มากเกินไปในครั้งเดียว"),
+    (
+        "email is not a valid address",
+        "This email address isn't valid.",
+        "อีเมลนี้ไม่ถูกต้อง",
+    ),
+    (
+        "device_label is too long",
+        "The device name is too long.",
+        "ชื่ออุปกรณ์ยาวเกินไป",
+    ),
+    (
+        "referenced record does not exist",
+        "refers to something that no longer exists",
+        "อ้างถึงรายการที่ไม่มีอยู่แล้ว",
+    ),
+    // Domain errors (`billo-domain`), checked again by the server.
+    (
+        "day of month must be 1..=31",
+        "day of month must be 1 to 31",
+        "วันที่ของเดือนต้องอยู่ระหว่าง 1 ถึง 31",
+    ),
+    (
+        "due days after statement must be at least 1",
+        "the due date must be at least 1 day after the statement",
+        "วันครบกำหนดต้องอยู่หลังวันสรุปยอดอย่างน้อย 1 วัน",
+    ),
+    (
+        "annual rate must be 0..=10000 basis points",
+        "the yearly rate must be 0% to 100%",
+        "อัตราดอกเบี้ยต่อปีต้องอยู่ระหว่าง 0% ถึง 100%",
+    ),
+    (
+        "monthly rate must be 0..=10000 basis points",
+        "the monthly rate must be 0% to 100%",
+        "อัตราดอกเบี้ยต่อเดือนต้องอยู่ระหว่าง 0% ถึง 100%",
+    ),
+    (
+        "a loan needs at least 1 month",
+        "a loan needs at least 1 month",
+        "สินเชื่อต้องมีอย่างน้อย 1 เดือน",
+    ),
+    (
+        "an installment plan needs at least 1 month",
+        "an installment plan needs at least 1 month",
+        "รายการผ่อนต้องมีอย่างน้อย 1 เดือน",
+    ),
+    (
+        "loan principal must be positive",
+        "the loan amount must be more than zero",
+        "ยอดเงินกู้ต้องมากกว่าศูนย์",
+    ),
+    (
+        "installment principal must be positive",
+        "the amount must be more than zero",
+        "ยอดผ่อนต้องมากกว่าศูนย์",
+    ),
+    (
+        "first payment must be after the loan start",
+        "the first payment must be after the loan starts",
+        "งวดแรกต้องอยู่หลังวันเริ่มสินเชื่อ",
+    ),
+    (
+        "installment does not cover the interest",
+        "the monthly installment doesn't cover the interest",
+        "ค่างวดไม่พอจ่ายดอกเบี้ย",
+    ),
+    (
+        "extra payments are only supported on effective-rate loans",
+        "extra payments only work with effective-rate loans",
+        "ชำระเพิ่มได้เฉพาะสินเชื่อแบบลดต้นลดดอก",
+    ),
+    (
+        "extra payment must be positive",
+        "an extra payment must be more than zero",
+        "ยอดชำระเพิ่มต้องมากกว่าศูนย์",
+    ),
+    (
+        "credit limit cannot be negative",
+        "the credit limit can't be negative",
+        "วงเงินต้องไม่ติดลบ",
+    ),
+    (
+        "minimum payment floor cannot be negative",
+        "the minimum payment floor can't be negative",
+        "ยอดชำระขั้นต่ำต้องไม่ติดลบ",
+    ),
+    (
+        "rounding step must be at least 1 minor unit",
+        "the rounding step must be at least 0.01",
+        "หน่วยการปัดเศษต้องอย่างน้อย 0.01",
+    ),
+    (
+        "budget limit cannot be negative",
+        "the budget can't be negative",
+        "งบต้องไม่ติดลบ",
+    ),
+    (
+        "cannot combine",
+        "amounts are in different currencies",
+        "จำนวนเงินอยู่คนละสกุล",
+    ),
+    (
+        "money amount overflow",
+        "the amount is too large",
+        "จำนวนเงินมากเกินไป",
+    ),
+];
+
+fn find_problem(text: &str) -> Option<&'static (&'static str, &'static str, &'static str)> {
+    ERROR_PROBLEMS.iter().find(|(p, _, _)| text.starts_with(p))
+}
+
+/// The server's validation message in the user's language, if Billo knows it:
+/// `"amount: must be positive"` → `"จำนวนเงิน: ต้องมากกว่าศูนย์"`. Unknown fields are
+/// left out; an unknown problem gives `None` (show a general message and the raw one).
+pub fn validation_text(raw: &str) -> Option<String> {
+    let raw = raw.trim();
+    if let Some(&(_, en, th)) = find_problem(raw) {
+        return Some(pick((en, th)).to_owned());
+    }
+    let (field, problem) = raw.split_once(": ")?;
+    // Nested messages ("rules.card: day of month …") keep the innermost problem.
+    let problem = problem.rsplit(": ").next().unwrap_or(problem);
+    let &(_, en, th) = find_problem(problem)?;
+    let text = pick((en, th));
+    Some(match ERROR_FIELDS.iter().find(|(f, _, _)| *f == field) {
+        Some(&(_, fen, fth)) => format!("{}: {text}", pick((fen, fth))),
+        None => text.to_owned(),
+    })
+}
+
 pub fn due_on_day(day: u8) -> String {
     match lang() {
         Lang::En => format!("due on day {day}"),
@@ -594,6 +866,67 @@ mod tests {
         set_lang(Lang::En);
         assert_eq!(this_month(), "This month");
         assert_eq!(payment_n_of(2, 12), "Payment 2 of 12");
+    }
+
+    #[test]
+    fn every_error_code_has_text() {
+        let codes = [
+            ErrorCode::NotFound,
+            ErrorCode::Validation,
+            ErrorCode::Unauthorized,
+            ErrorCode::Conflict,
+            ErrorCode::Internal,
+        ];
+        for l in Lang::ALL {
+            set_lang(l);
+            for code in codes {
+                let text = error_code_text(code);
+                assert!(!text.trim().is_empty(), "{code:?}");
+                assert_eq!(has_thai(text), l == Lang::Th, "{code:?} in {l:?}: {text}");
+            }
+        }
+        set_lang(Lang::En);
+    }
+
+    #[test]
+    fn error_tables_have_both_languages() {
+        for (raw, en, th) in ERROR_FIELDS.iter().chain(ERROR_PROBLEMS) {
+            assert!(!en.is_empty() && !has_thai(en), "{raw}");
+            assert!(has_thai(th), "{raw}: {th}");
+        }
+    }
+
+    #[test]
+    fn validation_messages_translate() {
+        set_lang(Lang::Th);
+        assert_eq!(
+            validation_text("amount: must be positive").as_deref(),
+            Some("จำนวนเงิน: ต้องมากกว่าศูนย์")
+        );
+        assert_eq!(
+            validation_text("rules.card: day of month must be 1..=31, got 0").as_deref(),
+            Some("การตั้งค่าบัตร: วันที่ของเดือนต้องอยู่ระหว่าง 1 ถึง 31")
+        );
+        assert_eq!(
+            validation_text("rules.loan: installment does not cover the interest").as_deref(),
+            Some("การตั้งค่าสินเชื่อ: ค่างวดไม่พอจ่ายดอกเบี้ย")
+        );
+        assert_eq!(
+            validation_text("email is not a valid address").as_deref(),
+            Some("อีเมลนี้ไม่ถูกต้อง")
+        );
+        // Unknown field: the problem alone.
+        assert_eq!(
+            validation_text("something_new: required").as_deref(),
+            Some("ต้องกรอก")
+        );
+        // Unknown problem: nothing (the caller shows a general message).
+        assert_eq!(validation_text("amount: wobbly"), None);
+        set_lang(Lang::En);
+        assert_eq!(
+            validation_text("category_id: no such category").as_deref(),
+            Some("Category: no longer exists")
+        );
     }
 
     #[test]

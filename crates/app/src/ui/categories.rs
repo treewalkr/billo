@@ -6,7 +6,7 @@ use dioxus::prelude::*;
 
 use super::accounts::BackLink;
 use super::fields::{SelectField, TextField};
-use super::{ErrorBox, Loading, Screen, use_nav};
+use super::{ErrorBox, Loading, Problem, Screen, use_nav};
 use crate::categories::{self, parent_options, starter_records, tree};
 use crate::forms::{CategoryDraft, from_key, key};
 use crate::store::use_store;
@@ -26,7 +26,7 @@ pub fn Categories() -> Element {
     let body = match &*list.read() {
         None => rsx! { Loading {} },
         Some(Err(e)) => rsx! {
-            ErrorBox { message: e.to_string(), on_retry: move |_| list.restart() }
+            ErrorBox { message: e.to_string(), details: e.details(), on_retry: move |_| list.restart() }
         },
         Some(Ok(all)) if all.is_empty() => rsx! {
             StarterOffer { on_added: move |()| list.restart() }
@@ -82,7 +82,7 @@ pub fn Categories() -> Element {
 pub fn StarterOffer(on_added: EventHandler<()>, on_dismiss: Option<EventHandler<()>>) -> Element {
     let store = use_store();
     let mut busy = use_signal(|| false);
-    let mut error = use_signal(|| None::<String>);
+    let mut error = use_signal(|| None::<Problem>);
     let add = move |_| {
         busy.set(true);
         error.set(None);
@@ -99,7 +99,7 @@ pub fn StarterOffer(on_added: EventHandler<()>, on_dismiss: Option<EventHandler<
             busy.set(false);
             match result {
                 Ok(()) => on_added.call(()),
-                Err(e) => error.set(Some(e.to_string())),
+                Err(e) => error.set(Some(e.into())),
             }
         });
     };
@@ -108,7 +108,7 @@ pub fn StarterOffer(on_added: EventHandler<()>, on_dismiss: Option<EventHandler<
             h3 { "{s::starter_title()}" }
             p { class: "note", "{s::starter_body()}" }
             if let Some(msg) = error() {
-                ErrorBox { message: msg }
+                ErrorBox { message: msg.message, details: msg.details }
             }
             div { class: "actions",
                 button { id: "add-starter", disabled: busy(), onclick: add,
@@ -131,7 +131,7 @@ pub fn CategoryForm(existing: Option<Record<CategoryData>>) -> Element {
         Some(c) => CategoryDraft::from_data(&c.data),
         None => CategoryDraft::new(CategoryKind::Expense),
     });
-    let mut error = use_signal(|| None::<String>);
+    let mut error = use_signal(|| None::<Problem>);
     let mut busy = use_signal(|| false);
     let mut confirm = use_signal(|| false);
     let all =
@@ -147,7 +147,7 @@ pub fn CategoryForm(existing: Option<Record<CategoryData>>) -> Element {
         let data = match draft.read().to_data() {
             Ok(d) => d,
             Err(msg) => {
-                error.set(Some(msg));
+                error.set(Some(msg.into()));
                 return;
             }
         };
@@ -159,7 +159,7 @@ pub fn CategoryForm(existing: Option<Record<CategoryData>>) -> Element {
                 .await
             {
                 Ok(_) => nav.set(Screen::Categories),
-                Err(e) => error.set(Some(e.to_string())),
+                Err(e) => error.set(Some(e.into())),
             }
             busy.set(false);
         });
@@ -197,7 +197,7 @@ pub fn CategoryForm(existing: Option<Record<CategoryData>>) -> Element {
                 .await
             {
                 Ok(()) => nav.set(Screen::Categories),
-                Err(e) => error.set(Some(e.to_string())),
+                Err(e) => error.set(Some(e.into())),
             }
         });
     };
@@ -269,7 +269,7 @@ pub fn CategoryForm(existing: Option<Record<CategoryData>>) -> Element {
                 }
             }
             if let Some(msg) = error() {
-                ErrorBox { message: msg }
+                ErrorBox { message: msg.message, details: msg.details }
             }
             button { r#type: "submit", id: "save-category", disabled: busy(), "{s::save()}" }
             if existing.is_some() {

@@ -8,7 +8,7 @@ use dioxus::prelude::*;
 
 use super::accounts::BackLink;
 use super::fields::{NumberField, SelectField, TextField};
-use super::{ErrorBox, Loading, Screen, use_nav};
+use super::{ErrorBox, Loading, Problem, Screen, use_nav};
 use crate::forms::{
     NEW_CATEGORY, TransactionDraft, category_kind, is_card_like, key, transaction_kinds,
 };
@@ -54,7 +54,7 @@ pub fn TransactionList(account: Record<AccountData>) -> Element {
     let body = match &*txns.read() {
         None => rsx! { Loading {} },
         Some(Err(e)) => rsx! {
-            ErrorBox { message: e.to_string(), on_retry: move |_| txns.restart() }
+            ErrorBox { message: e.to_string(), details: e.details(), on_retry: move |_| txns.restart() }
         },
         Some(Ok((list, _))) if list.is_empty() => {
             rsx! { p { class: "empty", "{s::no_transactions()}" } }
@@ -142,7 +142,7 @@ pub fn TransactionForm(
         Some(t) => TransactionDraft::from_data(&t.data),
         None => TransactionDraft::new(kind, today),
     });
-    let mut error = use_signal(|| None::<String>);
+    let mut error = use_signal(|| None::<Problem>);
     let mut busy = use_signal(|| false);
     let mut confirm = use_signal(|| false);
     let categories =
@@ -160,7 +160,7 @@ pub fn TransactionForm(
         let new_cat = match d.new_category_name() {
             Ok(n) => n,
             Err(msg) => {
-                error.set(Some(msg));
+                error.set(Some(msg.into()));
                 return;
             }
         };
@@ -168,7 +168,7 @@ pub fn TransactionForm(
         let data = match d.to_data(account_id, kind, &currency, new_cat_id) {
             Ok(x) => x,
             Err(msg) => {
-                error.set(Some(msg));
+                error.set(Some(msg.into()));
                 return;
             }
         };
@@ -192,7 +192,7 @@ pub fn TransactionForm(
                 .await;
             match result {
                 Ok(_) => nav.set(Screen::Account(account_id)),
-                Err(e) => error.set(Some(e.to_string())),
+                Err(e) => error.set(Some(e.into())),
             }
             busy.set(false);
         });
@@ -209,7 +209,7 @@ pub fn TransactionForm(
                 .await
             {
                 Ok(()) => nav.set(Screen::Account(account_id)),
-                Err(e) => error.set(Some(e.to_string())),
+                Err(e) => error.set(Some(e.into())),
             }
         });
     };
@@ -310,7 +310,7 @@ pub fn TransactionForm(
                 oninput: move |v| draft.write().note = v,
             }
             if let Some(msg) = error() {
-                ErrorBox { message: msg }
+                ErrorBox { message: msg.message, details: msg.details }
             }
             button { r#type: "submit", id: "save-transaction", disabled: busy(), "{s::save()}" }
             if existing.is_some() {

@@ -537,12 +537,20 @@ li.over .left {
 
 #sync .main {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: 4px 8px;
+  min-width: 0;
 }
 
 #sync h3 {
   margin: 0;
+  white-space: nowrap;
+}
+
+#sync .card-head > button {
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 /* A centred question over the page (e.g. sign-out with changes waiting). */

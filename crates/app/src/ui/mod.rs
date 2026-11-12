@@ -8,7 +8,7 @@ use uuid::Uuid;
 
 use crate::api::{self, ApiError, Client};
 use crate::storage::{self, Session};
-use crate::store::{Store, SyncMsg, use_store};
+use crate::store::{SignOutCheck, Store, SyncMsg, sign_out_check, use_store};
 use crate::strings::{self as s, Lang};
 
 mod account_form;
@@ -178,6 +178,10 @@ pub fn App() -> Element {
     let session = use_signal(storage::load);
     use_context_provider(|| Auth(session));
     use_context_provider(|| Signal::new(Screen::Home));
+    use_context_provider(|| SignOut {
+        prompt: Signal::new(None),
+        busy: Signal::new(false),
+    });
     let signed_in = session.read().is_some();
     let auth = Auth(session);
 
@@ -219,6 +223,7 @@ pub fn App() -> Element {
                         signin::SignIn {}
                     }
                 }
+                SignOutDialog {}
             }
         }
     }
@@ -297,6 +302,7 @@ fn Header() -> Element {
     };
     let session = auth.session();
     let sign_out = move |_| sign_out(auth, store);
+    let busy = use_sign_out().busy();
     rsx! {
         header {
             div { class: "brand",
@@ -307,24 +313,106 @@ fn Header() -> Element {
                 div { class: "who",
                     sync::SyncIndicator {}
                     span { id: "signed-in-as", title: "{s::signed_in_as()} {session.email}", "{session.email}" }
-                    button { class: "link", id: "sign-out", onclick: sign_out, "{s::sign_out()}" }
+                    button { class: "link", id: "sign-out", disabled: busy, onclick: sign_out,
+                        if busy { "{s::signing_out()}" } else { "{s::sign_out()}" }
+                    }
                 }
             }
         }
     }
 }
 
-/// Pushes waiting changes and ends the session on the server (both best effort), then
-/// forgets the session and the local data.
+/// Sign-out in progress, and the "changes not synced" question. Shared through context.
+#[derive(Clone, Copy)]
+pub struct SignOut {
+    prompt: Signal<Option<SignOutCheck>>,
+    busy: Signal<bool>,
+}
+
+impl SignOut {
+    pub fn busy(&self) -> bool {
+        *self.busy.read()
+    }
+}
+
+pub fn use_sign_out() -> SignOut {
+    use_context::<SignOut>()
+}
+
+/// Tries to push waiting changes first. Local data is cleared only if nothing is left
+/// waiting; otherwise the user is asked (see [`SignOutDialog`]).
 pub fn sign_out(auth: Auth, store: Store) {
-    spawn(async move {
+    let SignOut {
+        mut prompt,
+        mut busy,
+    } = consume_context::<SignOut>();
+    if *busy.peek() {
+        return;
+    }
+    busy.set(true);
+    // Not tied to the screen that started it.
+    dioxus::dioxus_core::spawn_forever(async move {
         if store.pending_now() > 0 {
             let _ = store.sync(auth.client()).await;
         }
-        // The local session goes away even if the server is unreachable.
-        let _ = auth.call(|c| async move { c.logout().await }).await;
-        auth.forget();
+        match sign_out_check(&store.info(), store.pending_now()) {
+            SignOutCheck::Clear => end_session(auth).await,
+            check @ SignOutCheck::Confirm { .. } => prompt.set(Some(check)),
+        }
+        busy.set(false);
     });
+}
+
+/// Ends the session on the server (best effort), then forgets it; the root clears the
+/// local data when the session goes.
+async fn end_session(auth: Auth) {
+    // The local session goes away even if the server is unreachable.
+    let _ = auth.call(|c| async move { c.logout().await }).await;
+    auth.forget();
+}
+
+/// Asks before discarding changes that couldn't be sent. "Stay signed in" is the default.
+#[component]
+fn SignOutDialog() -> Element {
+    let auth = use_auth();
+    let SignOut { mut prompt, .. } = use_sign_out();
+    let Some(SignOutCheck::Confirm { waiting, offline }) = prompt() else {
+        return rsx! {};
+    };
+    rsx! {
+        div { class: "dialog-backdrop",
+            div {
+                class: "dialog",
+                id: "sign-out-dialog",
+                role: "alertdialog",
+                "aria-modal": "true",
+                "aria-labelledby": "sign-out-dialog-title",
+                "aria-describedby": "sign-out-dialog-text",
+                h3 { id: "sign-out-dialog-title", "{s::unsynced_title()}" }
+                p { id: "sign-out-dialog-text", "{s::unsynced_on_sign_out(waiting, offline)}" }
+                div { class: "actions",
+                    button {
+                        id: "stay-signed-in",
+                        autofocus: true,
+                        onmounted: move |e| async move {
+                            let _ = e.set_focus(true).await;
+                        },
+                        onclick: move |_| prompt.set(None),
+                        "{s::stay_signed_in()}"
+                    }
+                    button {
+                        class: "danger",
+                        id: "sign-out-discard",
+                        onclick: move |_| {
+                            prompt.set(None);
+                            dioxus::dioxus_core::spawn_forever(end_session(auth));
+                        },
+                        "{s::sign_out_discard()}"
+                    }
+                }
+            }
+        }
+    }
 }
 
 /// Thai / English buttons.

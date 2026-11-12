@@ -551,3 +551,44 @@ header .who span.sync-status {
 #sync h3 {
   margin: 0;
 }
+
+/* A centred question over the page (e.g. sign-out with changes waiting). */
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.dialog {
+  width: 100%;
+  max-width: 400px;
+  padding: 20px;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.dialog h3 {
+  margin: 0 0 8px;
+  font-size: 17px;
+}
+
+.dialog p {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+.dialog .actions {
+  flex-direction: column;
+}
+
+.dialog button.danger {
+  background: var(--danger);
+  color: #fff;
+}

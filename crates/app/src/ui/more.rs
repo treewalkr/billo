@@ -3,7 +3,7 @@
 use dioxus::prelude::*;
 
 use super::sync::SyncCard;
-use super::{LanguageSwitch, Screen, sign_out, use_auth, use_nav};
+use super::{LanguageSwitch, Screen, sign_out, use_auth, use_nav, use_sign_out};
 use crate::store::use_store;
 use crate::strings as s;
 
@@ -12,6 +12,7 @@ pub fn More() -> Element {
     let auth = use_auth();
     let store = use_store();
     let mut nav = use_nav();
+    let busy = use_sign_out().busy();
     let email = auth.session().map(|s| s.email).unwrap_or_default();
     rsx! {
         h2 { "{s::more()}" }
@@ -41,7 +42,9 @@ pub fn More() -> Element {
                     span { class: "sub", "{s::signed_in_as()}" }
                     span { class: "title", id: "more-email", "{email}" }
                 }
-                button { class: "secondary", id: "more-sign-out", onclick: move |_| sign_out(auth, store), "{s::sign_out()}" }
+                button { class: "secondary", id: "more-sign-out", disabled: busy, onclick: move |_| sign_out(auth, store),
+                    if busy { "{s::signing_out()}" } else { "{s::sign_out()}" }
+                }
             }
         }
     }

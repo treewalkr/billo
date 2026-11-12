@@ -87,6 +87,32 @@ impl SyncInfo {
     }
 }
 
+/// What sign-out does once it has tried to push the waiting changes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SignOutCheck {
+    /// Nothing is waiting: sign out and clear the local data.
+    Clear,
+    /// Changes are still waiting: ask before discarding them.
+    Confirm {
+        waiting: usize,
+        /// No connection (otherwise the sync failed for another reason).
+        offline: bool,
+    },
+}
+
+/// Decides sign-out after the push attempt: local data is only cleared when nothing is
+/// left to send.
+pub fn sign_out_check(info: &SyncInfo, pending: usize) -> SignOutCheck {
+    if pending == 0 {
+        SignOutCheck::Clear
+    } else {
+        SignOutCheck::Confirm {
+            waiting: pending,
+            offline: !info.online || info.unreachable,
+        }
+    }
+}
+
 /// Why the sync engine should run.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SyncMsg {
@@ -542,6 +568,42 @@ mod tests {
         assert_eq!(info.status(0), SyncStatus::Offline(0));
         info.syncing = true;
         assert_eq!(info.status(3), SyncStatus::Syncing);
+    }
+
+    #[test]
+    fn sign_out_clears_only_when_nothing_is_waiting() {
+        let mut info = SyncInfo::default();
+        assert_eq!(sign_out_check(&info, 0), SignOutCheck::Clear);
+        // A failed push (e.g. server error) leaves changes waiting: ask first.
+        info.error = Some("boom".into());
+        assert_eq!(
+            sign_out_check(&info, 3),
+            SignOutCheck::Confirm {
+                waiting: 3,
+                offline: false
+            }
+        );
+        // Offline: the device has no connection or the server is unreachable.
+        info.error = None;
+        info.unreachable = true;
+        assert_eq!(
+            sign_out_check(&info, 1),
+            SignOutCheck::Confirm {
+                waiting: 1,
+                offline: true
+            }
+        );
+        info.unreachable = false;
+        info.online = false;
+        assert_eq!(
+            sign_out_check(&info, 2),
+            SignOutCheck::Confirm {
+                waiting: 2,
+                offline: true
+            }
+        );
+        // Everything went out, even while marked offline: nothing to lose.
+        assert_eq!(sign_out_check(&info, 0), SignOutCheck::Clear);
     }
 
     #[test]

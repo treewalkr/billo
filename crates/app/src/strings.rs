@@ -122,6 +122,10 @@ table! {
     sign_in: "Sign in", "เข้าสู่ระบบ";
     signing_in: "Signing in…", "กำลังเข้าสู่ระบบ…";
     sign_out: "Sign out", "ออกจากระบบ";
+    signing_out: "Signing out…", "กำลังออกจากระบบ…";
+    unsynced_title: "Changes not synced yet", "ยังมีการเปลี่ยนแปลงที่ยังไม่ได้ซิงค์";
+    stay_signed_in: "Stay signed in", "อยู่ในระบบต่อ";
+    sign_out_discard: "Sign out and discard", "ออกจากระบบและทิ้งการเปลี่ยนแปลง";
     email: "Email", "อีเมล";
     email_placeholder: "you@example.com", "you@example.com";
     dev_sign_in_note: "Development sign-in: enter any email. Google sign-in comes later.", "เข้าสู่ระบบสำหรับนักพัฒนา: ใส่อีเมลใดก็ได้ ส่วนการเข้าสู่ระบบด้วย Google จะตามมาภายหลัง";
@@ -482,6 +486,37 @@ pub fn changes_waiting(n: usize) -> String {
     }
 }
 
+/// Why sign-out stopped: `n` changes are still waiting.
+pub fn unsynced_on_sign_out(n: usize, offline: bool) -> String {
+    match (lang(), offline) {
+        (Lang::En, offline) => {
+            let what = if n == 1 {
+                "1 change hasn't".to_owned()
+            } else {
+                format!("{n} changes haven't")
+            };
+            let why = if offline {
+                "you're offline"
+            } else {
+                "the last sync failed"
+            };
+            format!(
+                "{what} been sent to the server yet because {why}. If you sign out now, they will be lost. Stay signed in and Billo will send them when it can."
+            )
+        }
+        (Lang::Th, offline) => {
+            let why = if offline {
+                "เพราะคุณออฟไลน์อยู่"
+            } else {
+                "เพราะการซิงค์ครั้งล่าสุดไม่สำเร็จ"
+            };
+            format!(
+                "มีการเปลี่ยนแปลง {n} รายการที่ยังไม่ได้ส่งไปยังเซิร์ฟเวอร์{why} ถ้าออกจากระบบตอนนี้ การเปลี่ยนแปลงเหล่านี้จะหายไป หากอยู่ในระบบต่อ Billo จะส่งให้เมื่อทำได้"
+            )
+        }
+    }
+}
+
 pub fn rejected_notice(n: u32) -> String {
     match (lang(), n) {
         (Lang::En, 1) => "1 change couldn't be saved on the server and was undone.".to_owned(),
@@ -544,6 +579,17 @@ mod tests {
         set_lang(Lang::En);
         assert_eq!(this_month(), "This month");
         assert_eq!(payment_n_of(2, 12), "Payment 2 of 12");
+    }
+
+    #[test]
+    fn unsynced_sign_out_text() {
+        set_lang(Lang::En);
+        assert!(unsynced_on_sign_out(1, true).starts_with("1 change hasn't"));
+        assert!(unsynced_on_sign_out(3, false).contains("the last sync failed"));
+        set_lang(Lang::Th);
+        let th = unsynced_on_sign_out(3, true);
+        assert!(th.contains("3 รายการ") && th.contains("ออฟไลน์"));
+        set_lang(Lang::En);
     }
 
     #[test]

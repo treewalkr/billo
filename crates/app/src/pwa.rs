@@ -38,6 +38,11 @@ pub fn register_service_worker() {
 pub fn WebAppHead() -> Element {
     use_hook(register_service_worker);
     rsx! {
+        // Draw under the notch and home indicator; the CSS pads with the safe-area insets.
+        document::Meta {
+            name: "viewport",
+            content: "width=device-width, initial-scale=1, viewport-fit=cover",
+        }
         document::Link { rel: "manifest", href: "/manifest.webmanifest" }
         document::Link { rel: "icon", r#type: "image/png", href: "/icon-192.png" }
         document::Link { rel: "apple-touch-icon", href: "/icon-192.png" }

@@ -313,6 +313,7 @@ table! {
     cant_work_out_budget: "Can't work out this month's budget", "คำนวณงบเดือนนี้ไม่ได้";
     language: "Language", "ภาษา";
     theme: "Theme", "ธีม";
+    sections: "Sections", "ส่วนต่างๆ";
     theme_calm: "Calm", "สุขุม";
     theme_warm: "Warm", "อบอุ่น";
     err_network: "Can't reach the server", "เชื่อมต่อเซิร์ฟเวอร์ไม่ได้";

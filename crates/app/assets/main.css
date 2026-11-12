@@ -29,6 +29,7 @@
   --card-border: 1px solid var(--line);
   --card-shadow: none;
   --dialog-shadow: 0 12px 32px rgba(22, 32, 46, 0.18);
+  --float-shadow: 0 4px 16px rgba(22, 32, 46, 0.1);
 }
 
 
@@ -59,6 +60,7 @@
   --card-border: none;
   --card-shadow: 0 1px 2px rgba(90, 60, 30, 0.06), 0 6px 18px rgba(90, 60, 30, 0.07);
   --dialog-shadow: 0 16px 40px rgba(90, 60, 30, 0.2);
+  --float-shadow: 0 6px 20px rgba(90, 60, 30, 0.14);
 }
 
 :root {
@@ -123,7 +125,7 @@ header {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 12px 20px;
+  padding: calc(12px + env(safe-area-inset-top, 0px)) 20px 12px;
   background: var(--surface);
   border-bottom: 1px solid var(--line);
 }
@@ -137,7 +139,8 @@ header h1 {
 main {
   max-width: 480px;
   margin: 0 auto;
-  padding: 20px 16px 96px;
+  /* Room for the tab bar and the phone's home indicator below it. */
+  padding: 20px 16px calc(96px + env(safe-area-inset-bottom, 0px));
 }
 
 main h2 {
@@ -501,8 +504,22 @@ nav.tabs {
   bottom: 0;
   display: flex;
   justify-content: center;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
   background: var(--surface);
   border-top: 1px solid var(--line);
+}
+
+/* Wide screens: a bar as wide as the page column, not the whole window. */
+@media (min-width: 900px) {
+  nav.tabs {
+    max-width: 480px;
+    margin: 0 auto;
+    bottom: 16px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--float-shadow);
+    overflow: hidden;
+  }
 }
 
 nav.tabs button {

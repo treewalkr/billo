@@ -352,28 +352,32 @@ fn Screens() -> Element {
     };
     rsx! {
         div { key: "{screen.key()}", {body} }
-        nav { class: "tabs",
+        nav { class: "tabs", "aria-label": s::sections(),
             button {
                 id: "tab-home",
                 class: if tab == Tab::Home { "active" } else { "" },
+                "aria-current": (tab == Tab::Home).then_some("page"),
                 onclick: move |_| nav.set(Screen::Home),
                 "{s::this_month()}"
             }
             button {
                 id: "tab-accounts",
                 class: if tab == Tab::Accounts { "active" } else { "" },
+                "aria-current": (tab == Tab::Accounts).then_some("page"),
                 onclick: move |_| nav.set(Screen::Accounts),
                 "{s::accounts()}"
             }
             button {
                 id: "tab-budgets",
                 class: if tab == Tab::Budgets { "active" } else { "" },
+                "aria-current": (tab == Tab::Budgets).then_some("page"),
                 onclick: move |_| nav.set(Screen::Budgets),
                 "{s::budgets()}"
             }
             button {
                 id: "tab-more",
                 class: if tab == Tab::More { "active" } else { "" },
+                "aria-current": (tab == Tab::More).then_some("page"),
                 onclick: move |_| nav.set(Screen::More),
                 "{s::more()}"
             }

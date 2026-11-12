@@ -234,7 +234,6 @@ impl Client {
         self.put("/categories", id, base_version, data).await
     }
 
-    #[allow(dead_code, reason = "for the budgets and categories screens (next)")]
     pub async fn delete_category(&self, id: Uuid) -> Result<(), ApiError> {
         self.delete("/categories", id).await
     }

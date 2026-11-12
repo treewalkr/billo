@@ -272,3 +272,34 @@ pub fn includes_installments(amount: &str) -> String {
 pub fn payment_n_of(n: usize, of: usize) -> String {
     format!("Payment {n} of {of}")
 }
+
+// Categories
+pub const MORE: &str = "More";
+pub const CATEGORIES: &str = "Categories";
+pub const ADD_CATEGORY: &str = "Add category";
+pub const EDIT_CATEGORY: &str = "Edit category";
+pub const NO_CATEGORIES: &str = "No categories yet.";
+pub const NAME_TH: &str = "Thai name";
+pub const NAME_EN: &str = "English name";
+pub const CATEGORY_NAME_HINT: &str = "Fill in one or both; Billo shows the one for your language.";
+pub const CATEGORY_NAME_REQUIRED: &str = "Enter a Thai or English name.";
+pub const SPENDING: &str = "Spending";
+pub const INCOME: &str = "Income";
+pub const PARENT: &str = "Inside";
+pub const NO_PARENT: &str = "Nothing (top level)";
+pub const CATEGORY_DELETE_NOTE: &str =
+    "Transactions in this category keep their amounts; they just lose the category.";
+pub const STARTER_TITLE: &str = "Start with common categories?";
+pub const STARTER_BODY: &str = "Food, transport, bills, salary and other everyday categories, in Thai and English. You can rename or delete any of them.";
+pub const ADD_STARTER: &str = "Add starter categories";
+pub const ADDING: &str = "Adding…";
+pub const NOT_NOW: &str = "Not now";
+
+use billo_api::CategoryKind;
+
+pub const fn category_kind_label(k: CategoryKind) -> &'static str {
+    match k {
+        CategoryKind::Expense => SPENDING,
+        CategoryKind::Income => INCOME,
+    }
+}

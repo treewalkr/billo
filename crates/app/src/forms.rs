@@ -7,7 +7,8 @@ use billo_api::rules::{
     LoanMethod, LoanSettings, MinPaymentSettings, RULES_VERSION, RoundingMode, RoundingSettings,
 };
 use billo_api::{
-    AccountData, AccountKind, CategoryKind, InstallmentPlanData, TransactionData, TransactionKind,
+    AccountData, AccountKind, CategoryData, CategoryKind, InstallmentPlanData, TransactionData,
+    TransactionKind,
 };
 use billo_domain::Currency;
 use serde::Serialize;
@@ -449,6 +450,57 @@ impl PlanDraft {
     }
 }
 
+/// A category: Thai and English names (at least one), kind, and optional parent.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CategoryDraft {
+    pub name_th: String,
+    pub name_en: String,
+    pub kind: CategoryKind,
+    /// A parent category id, or `""` for none.
+    pub parent: String,
+}
+
+impl CategoryDraft {
+    pub fn new(kind: CategoryKind) -> Self {
+        Self {
+            name_th: String::new(),
+            name_en: String::new(),
+            kind,
+            parent: String::new(),
+        }
+    }
+
+    pub fn from_data(d: &CategoryData) -> Self {
+        Self {
+            name_th: d.name_th.clone().unwrap_or_default(),
+            name_en: d.name_en.clone().unwrap_or_default(),
+            kind: d.kind,
+            parent: d.parent_id.map(|p| p.to_string()).unwrap_or_default(),
+        }
+    }
+
+    pub fn to_data(&self) -> Result<CategoryData, String> {
+        let text = |t: &str| {
+            let t = t.trim();
+            (!t.is_empty()).then(|| t.to_owned())
+        };
+        let (name_th, name_en) = (text(&self.name_th), text(&self.name_en));
+        if name_th.is_none() && name_en.is_none() {
+            return Err(crate::strings::CATEGORY_NAME_REQUIRED.to_owned());
+        }
+        let parent_id = match self.parent.as_str() {
+            "" => None,
+            id => Some(Uuid::parse_str(id).map_err(|_| "Parent: unknown".to_owned())?),
+        };
+        Ok(CategoryData {
+            parent_id,
+            name_th,
+            name_en,
+            kind: self.kind,
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -663,5 +715,26 @@ mod tests {
             bad.to_data(card, "THB"),
             Err("Months: must be 1 to 120".into())
         );
+    }
+
+    #[test]
+    fn category_draft_needs_a_name() {
+        let mut f = CategoryDraft::new(CategoryKind::Expense);
+        f.name_en = "  ".into();
+        assert!(f.to_data().is_err());
+        f.name_th = " อาหาร ".into();
+        let d = f.to_data().unwrap();
+        assert_eq!(d.name_th.as_deref(), Some("อาหาร"));
+        assert_eq!(d.name_en, None);
+        assert_eq!(d.parent_id, None);
+        assert_eq!(CategoryDraft::from_data(&d), {
+            let mut g = CategoryDraft::new(CategoryKind::Expense);
+            g.name_th = "อาหาร".into();
+            g
+        });
+        f.parent = Uuid::nil().to_string();
+        assert_eq!(f.to_data().unwrap().parent_id, Some(Uuid::nil()));
+        f.parent = "bad".into();
+        assert!(f.to_data().is_err());
     }
 }

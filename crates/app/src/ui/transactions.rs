@@ -12,14 +12,7 @@ use super::{ErrorBox, Loading, Screen, use_auth, use_nav};
 use crate::forms::{
     NEW_CATEGORY, TransactionDraft, category_kind, is_card_like, key, transaction_kinds,
 };
-use crate::{api, clock, format, strings as s};
-
-fn category_name(c: &CategoryData) -> String {
-    c.name_en
-        .clone()
-        .or_else(|| c.name_th.clone())
-        .unwrap_or_default()
-}
+use crate::{api, categories, clock, format, strings as s};
 
 /// Kinds that add money to a cash account or reduce what's owed on a debt.
 fn is_credit(kind: TransactionKind, minor: i64) -> bool {
@@ -81,7 +74,7 @@ pub fn TransactionList(account: Record<AccountData>) -> Element {
                         .data
                         .category_id
                         .and_then(|c| cats.iter().find(|x| x.id == c))
-                        .map(|c| category_name(&c.data));
+                        .map(|c| categories::label(cats, &c.data));
                     let mut sub = vec![format::date(t.data.occurred_on)];
                     if let Some(p) = t.data.posted_on.filter(|p| *p != t.data.occurred_on) {
                         sub.push(format!("{} {}", s::POSTED, format::date(p)));
@@ -235,7 +228,7 @@ pub fn TransactionForm(
             cat_options.extend(
                 list.iter()
                     .filter(|c| c.data.kind == want || c.id.to_string() == d.category)
-                    .map(|c| (c.id.to_string(), category_name(&c.data))),
+                    .map(|c| (c.id.to_string(), categories::label(list, &c.data))),
             );
             None
         }

@@ -3,6 +3,7 @@
 use billo_api::TransactionQuery;
 use dioxus::prelude::*;
 
+use super::categories::StarterOffer;
 use super::{ErrorBox, Loading, Screen, use_auth, use_nav};
 use crate::api::ApiError;
 use crate::overview::{self, CardDue, Detail, Item, LoanDue, Status, ThisMonth};
@@ -63,8 +64,22 @@ pub fn Home() -> Element {
         }
     };
 
+    // New users with no categories get the starter set offered once.
+    let mut cats =
+        use_resource(
+            move || async move { auth.call(|c| async move { c.categories().await }).await },
+        );
+    let mut dismissed = use_signal(|| false);
+    let offer = !dismissed() && matches!(&*cats.read(), Some(Ok(list)) if list.is_empty());
+
     rsx! {
         h2 { "{s::THIS_MONTH}" }
+        if offer {
+            StarterOffer {
+                on_added: move |()| cats.restart(),
+                on_dismiss: move |()| dismissed.set(true),
+            }
+        }
         {body}
     }
 }

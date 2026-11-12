@@ -1,6 +1,8 @@
 //! The app shell: session, header and screens.
 
-use billo_api::{AccountData, AccountKind, InstallmentPlanData, Record, TransactionData};
+use billo_api::{
+    AccountData, AccountKind, CategoryData, InstallmentPlanData, Record, TransactionData,
+};
 use dioxus::prelude::*;
 use uuid::Uuid;
 
@@ -10,8 +12,10 @@ use crate::strings as s;
 
 mod account_form;
 mod accounts;
+mod categories;
 mod fields;
 mod home;
+mod more;
 mod plans;
 mod signin;
 mod transactions;
@@ -82,6 +86,10 @@ pub enum Screen {
         Box<Record<AccountData>>,
         Option<Box<Record<InstallmentPlanData>>>,
     ),
+    More,
+    Categories,
+    /// Add (`None`) or edit a category.
+    CategoryForm(Option<Box<Record<CategoryData>>>),
 }
 
 impl Screen {
@@ -101,12 +109,19 @@ impl Screen {
                 Some(p) => format!("plan-{}-{}", p.id, p.version),
                 None => format!("new-plan-{}", a.id),
             },
+            Self::More => "more".into(),
+            Self::Categories => "categories".into(),
+            Self::CategoryForm(c) => match c {
+                Some(c) => format!("category-{}-{}", c.id, c.version),
+                None => "new-category".into(),
+            },
         }
     }
 
     fn tab(&self) -> Tab {
         match self {
             Self::Home => Tab::Home,
+            Self::More | Self::Categories | Self::CategoryForm(_) => Tab::More,
             _ => Tab::Accounts,
         }
     }
@@ -116,6 +131,7 @@ impl Screen {
 enum Tab {
     Home,
     Accounts,
+    More,
 }
 
 pub fn use_nav() -> Signal<Screen> {
@@ -169,6 +185,9 @@ fn Screens() -> Element {
         Screen::PlanForm(a, p) => rsx! {
             plans::PlanForm { account: *a, existing: p.map(|p| *p) }
         },
+        Screen::More => rsx! { more::More {} },
+        Screen::Categories => rsx! { categories::Categories {} },
+        Screen::CategoryForm(c) => rsx! { categories::CategoryForm { existing: c.map(|c| *c) } },
     };
     rsx! {
         div { key: "{screen.key()}", {body} }
@@ -185,6 +204,12 @@ fn Screens() -> Element {
                 onclick: move |_| nav.set(Screen::Accounts),
                 "{s::ACCOUNTS}"
             }
+            button {
+                id: "tab-more",
+                class: if tab == Tab::More { "active" } else { "" },
+                onclick: move |_| nav.set(Screen::More),
+                "{s::MORE}"
+            }
         }
     }
 }
@@ -199,13 +224,7 @@ fn Header() -> Element {
         Some(Err(_)) => s::OFFLINE.to_owned(),
     };
     let session = auth.session();
-    let sign_out = move |_| {
-        spawn(async move {
-            // Best effort: the local session goes away even if the server is unreachable.
-            let _ = auth.call(|c| async move { c.logout().await }).await;
-            auth.forget();
-        });
-    };
+    let sign_out = move |_| sign_out(auth);
     rsx! {
         header {
             div { class: "brand",
@@ -220,6 +239,15 @@ fn Header() -> Element {
             }
         }
     }
+}
+
+/// Ends the session on the server (best effort) and forgets it locally.
+pub fn sign_out(auth: Auth) {
+    spawn(async move {
+        // The local session goes away even if the server is unreachable.
+        let _ = auth.call(|c| async move { c.logout().await }).await;
+        auth.forget();
+    });
 }
 
 /// An error message with an optional retry button.

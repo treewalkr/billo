@@ -1,11 +1,13 @@
 //! Credit cards.
 
+pub mod credit_line;
 pub mod cycle;
 pub mod installment;
 pub mod interest;
 pub mod min_payment;
 pub mod statement;
 
+pub use credit_line::{CreditLine, CreditLineError};
 pub use cycle::{CycleError, CycleRules, DueRule, DueShift, StatementPeriod};
 pub use installment::{InstallmentError, InstallmentPlan, Portion, Remainder};
 pub use interest::{DayCount, Entry, EntryKind, InterestError, InterestRules, InterestStart};

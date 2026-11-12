@@ -9,7 +9,7 @@
 
 ### Fixed
 
-- Lists of accounts, transactions, installment plans and categories now work with a keyboard and screen readers.
+- Lists of accounts, transactions, installment plans and categories now work with a keyboard and screen readers, and the control you're on is clearly outlined.
 
 ### Changed
 

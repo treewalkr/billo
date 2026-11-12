@@ -87,6 +87,26 @@ body {
   color: var(--text);
 }
 
+/* Keyboard focus: a clear ring in the accent colour on everything you can operate. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline-offset: 1px;
+  border-color: var(--accent);
+}
+
+/* Full-width rows and tabs: keep the ring inside, so the card edge doesn't clip it. */
+.row-button:focus-visible,
+nav.tabs button:focus-visible {
+  outline-offset: -2px;
+  border-radius: var(--radius-control);
+}
+
 /* Hide scrollbars (like a native app); scrolling still works. */
 html,
 body,
@@ -420,9 +440,12 @@ form > button[type="submit"] {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  width: 100%;
+  /* Reaches 8px past the text on each side, so the focus ring doesn't touch it. */
+  box-sizing: border-box;
+  width: calc(100% + 16px);
+  margin: 0 -8px;
   min-height: 48px;
-  padding: 10px 0;
+  padding: 10px 8px;
   border-radius: 0;
   background: none;
   color: inherit;

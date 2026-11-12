@@ -105,6 +105,12 @@ pub enum SignOutCheck {
 
 /// Decides sign-out after the push attempt: local data is only cleared when nothing is
 /// left to send.
+/// Whether local data must be kept when the session goes away without an explicit
+/// discard (e.g. the server answered 401).
+pub fn keep_on_session_loss(pending: usize) -> bool {
+    pending > 0
+}
+
 pub fn sign_out_check(info: &SyncInfo, pending: usize) -> SignOutCheck {
     if pending == 0 {
         SignOutCheck::Clear
@@ -303,7 +309,17 @@ impl Store {
         }
     }
 
-    /// Forgets all local data (sign-out).
+    /// Forgets local data when the session ends, unless changes are still waiting.
+    /// An expired session (401) must not lose unsynced work: the data stays, and signing
+    /// in again as the same user pushes it. Use [`Store::clear`] to discard on purpose.
+    pub fn clear_if_synced(self) {
+        if keep_on_session_loss(self.shared().borrow().pending()) {
+            return;
+        }
+        self.clear();
+    }
+
+    /// Forgets all local data, including changes still waiting (explicit discard).
     pub fn clear(self) {
         let state = self.shared();
         if state.borrow().user_id().is_none() && state.borrow().pending() == 0 {
@@ -575,6 +591,12 @@ mod tests {
         assert_eq!(info.status(0), SyncStatus::Offline(0));
         info.syncing = true;
         assert_eq!(info.status(3), SyncStatus::Syncing);
+    }
+
+    #[test]
+    fn expired_session_keeps_unsynced_changes() {
+        assert!(keep_on_session_loss(1));
+        assert!(!keep_on_session_loss(0));
     }
 
     #[test]

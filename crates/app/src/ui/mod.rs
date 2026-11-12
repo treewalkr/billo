@@ -239,7 +239,8 @@ pub fn App() -> Element {
                 store.set_user(user_id);
                 store.send(SyncMsg::Now);
             }
-            None => store.clear(),
+            // Session gone (sign-out or expired): keep anything not yet synced.
+            None => store.clear_if_synced(),
         }
     });
     let ready = store.ready();
@@ -410,6 +411,7 @@ async fn end_session(auth: Auth) {
 #[component]
 fn SignOutDialog() -> Element {
     let auth = use_auth();
+    let store = crate::store::use_store();
     let ctx = use_sign_out();
     let mut prompt = ctx.prompt;
     let Some(SignOutCheck::Confirm { waiting, offline }) = prompt() else {
@@ -441,6 +443,8 @@ fn SignOutDialog() -> Element {
                         id: "sign-out-discard",
                         onclick: move |_| {
                             prompt.set(None);
+                            // The user chose to discard: clear even what is waiting.
+                            store.clear();
                             ctx.spawn(end_session(auth));
                         },
                         "{s::sign_out_discard()}"

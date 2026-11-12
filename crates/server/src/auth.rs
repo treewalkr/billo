@@ -5,6 +5,9 @@
 //! pushes the expiry to [`SESSION_TTL`] from now, written at most once per
 //! [`TOUCH_INTERVAL`] to avoid a write on every request.
 
+use aide::OperationInput;
+use aide::generate::GenContext;
+use aide::openapi::{Operation, Response as ApiResponse, StatusCode as ApiStatus};
 use axum::extract::FromRequestParts;
 use axum::http::header;
 use axum::http::request::Parts;
@@ -16,7 +19,7 @@ use time::{Duration, OffsetDateTime};
 use uuid::Uuid;
 
 use crate::app::AppState;
-use crate::error::ApiError;
+use crate::error::{ApiError, early_error_response};
 
 pub const SESSION_TTL: Duration = Duration::days(90);
 pub const TOUCH_INTERVAL: Duration = Duration::hours(1);
@@ -61,6 +64,27 @@ pub async fn create_session(
     .execute(db)
     .await?;
     Ok(token)
+}
+
+/// Name of the bearer-token security scheme in the OpenAPI docs.
+pub const SECURITY_SCHEME: &str = "bearer";
+
+/// Marks the operation as needing `Authorization: Bearer <token>`.
+impl OperationInput for CurrentUser {
+    fn operation_input(_ctx: &mut GenContext, operation: &mut Operation) {
+        let mut requirement = aide::openapi::SecurityRequirement::default();
+        requirement.insert(SECURITY_SCHEME.to_owned(), Vec::new());
+        if !operation.security.contains(&requirement) {
+            operation.security.push(requirement);
+        }
+    }
+
+    fn inferred_early_responses(
+        ctx: &mut GenContext,
+        operation: &mut Operation,
+    ) -> Vec<(Option<ApiStatus>, ApiResponse)> {
+        early_error_response(ctx, operation, 401, "Missing, invalid or expired session")
+    }
 }
 
 fn bearer(parts: &Parts) -> Option<&str> {

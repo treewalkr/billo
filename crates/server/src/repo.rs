@@ -6,6 +6,7 @@ use std::future::Future;
 
 use billo_api::sync::{Entity, EntityState};
 use billo_api::{Put, Record};
+use schemars::JsonSchema;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 use sqlx::postgres::{PgArguments, PgRow};
@@ -31,9 +32,9 @@ pub trait Resource: Send + Sync + 'static {
     /// `ORDER BY` clause for lists.
     const ORDER_BY: &'static str = "created_at, id";
 
-    type Data: Serialize + DeserializeOwned + PartialEq + Clone + Send + Sync + 'static;
+    type Data: Serialize + DeserializeOwned + JsonSchema + PartialEq + Clone + Send + Sync + 'static;
     /// List query parameters.
-    type Filter: DeserializeOwned + Send + Sync + 'static;
+    type Filter: DeserializeOwned + JsonSchema + Send + Sync + 'static;
 
     fn data_from_row(row: &PgRow) -> sqlx::Result<Self::Data>;
 
@@ -56,7 +57,7 @@ pub trait Resource: Send + Sync + 'static {
 }
 
 /// Query parameters for resources without list filters.
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, serde::Deserialize, JsonSchema)]
 pub struct NoFilter {}
 
 fn select_sql<R: Resource>() -> String {

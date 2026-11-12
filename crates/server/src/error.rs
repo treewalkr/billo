@@ -3,6 +3,9 @@
 //! Messages never contain amounts, notes or account names (architecture §7), and
 //! database errors are logged by code and constraint only.
 
+use aide::OperationOutput;
+use aide::generate::GenContext;
+use aide::openapi::{Operation, Response as ApiResponse, StatusCode as ApiStatus};
 use axum::Json;
 use axum::extract::rejection::{JsonRejection, PathRejection, QueryRejection};
 use axum::http::StatusCode;
@@ -66,6 +69,66 @@ impl IntoResponse for ApiError {
             },
         };
         (status, Json(body)).into_response()
+    }
+}
+
+/// An error response for the OpenAPI docs: the [`ErrorBody`] schema with `description`.
+pub fn error_response(ctx: &mut GenContext, description: &str) -> ApiResponse {
+    let mut res = Json::<ErrorBody>::operation_response(ctx, &mut Operation::default())
+        .expect("Json documents a response");
+    res.description = description.to_owned();
+    res
+}
+
+/// An extractor's rejection for the OpenAPI docs, unless the handler's own
+/// [`ApiError`] responses already list that status.
+pub fn early_error_response(
+    ctx: &mut GenContext,
+    operation: &Operation,
+    code: u16,
+    description: &str,
+) -> Vec<(Option<ApiStatus>, ApiResponse)> {
+    let status = ApiStatus::Code(code);
+    let listed = operation
+        .responses
+        .as_ref()
+        .is_some_and(|r| r.responses.contains_key(&status));
+    if listed {
+        Vec::new()
+    } else {
+        vec![(Some(status), error_response(ctx, description))]
+    }
+}
+
+impl OperationOutput for ApiError {
+    type Inner = ErrorBody;
+
+    fn operation_response(ctx: &mut GenContext, operation: &mut Operation) -> Option<ApiResponse> {
+        Json::<ErrorBody>::operation_response(ctx, operation)
+    }
+
+    fn inferred_responses(
+        ctx: &mut GenContext,
+        _operation: &mut Operation,
+    ) -> Vec<(Option<ApiStatus>, ApiResponse)> {
+        [
+            (401, "Missing, invalid or expired session"),
+            (404, "Not found"),
+            (
+                409,
+                "The id belongs to another user, or the record is a duplicate",
+            ),
+            (422, "The request is not valid"),
+            (500, "Internal error; worth retrying"),
+        ]
+        .into_iter()
+        .map(|(code, description)| {
+            (
+                Some(ApiStatus::Code(code)),
+                error_response(ctx, description),
+            )
+        })
+        .collect()
     }
 }
 

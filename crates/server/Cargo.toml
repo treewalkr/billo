@@ -8,7 +8,7 @@ repository.workspace = true
 publish = false
 
 [dependencies]
-billo-api = { path = "../api" }
+billo-api = { path = "../api", features = ["schema"] }
 billo-domain = { path = "../domain" }
 base64 = "0.22"
 getrandom = "0.3"
@@ -29,6 +29,9 @@ jsonwebtoken = { version = "11", default-features = false, features = ["aws_lc_r
 # Calls to Google's token and JWKS endpoints, over rustls.
 reqwest = { version = "0.13", default-features = false, features = ["json", "form", "rustls"] }
 url = "2"
+# OpenAPI spec and Scalar docs, built from the handler types. Alpha: pinned exactly.
+aide = { version = "=0.16.0-alpha.4", features = ["axum", "axum-json", "axum-query", "scalar"] }
+schemars = { version = "1", features = ["uuid1"] }
 
 [build-dependencies]
 toml = "1"

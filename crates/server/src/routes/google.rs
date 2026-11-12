@@ -12,10 +12,12 @@
 //! Google sign-in returns the ID token, which is verified the same way, for either the
 //! web or the iOS client.
 
+use aide::transform::TransformOperation;
 use axum::extract::State;
 use axum::http::{StatusCode, header};
-use axum::response::{IntoResponse, Response};
+use axum::response::{Html, IntoResponse, Redirect, Response};
 use billo_api::{ErrorBody, ErrorCode, ErrorDetail, GoogleLoginRequest, LoginResponse};
+use schemars::JsonSchema;
 use serde::Deserialize;
 use sqlx::PgPool;
 use time::{Duration, OffsetDateTime};
@@ -30,12 +32,14 @@ use crate::google::{Google, GoogleUser, VerifyError, code_challenge, random_stri
 /// How long a started login stays valid.
 pub const ATTEMPT_TTL: Duration = Duration::minutes(10);
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, JsonSchema)]
 pub struct StartQuery {
+    /// Where to send the user back to: an http(s) URL on one of the allowed app origins.
     return_to: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+/// Set by Google when it redirects back.
+#[derive(Debug, Deserialize, JsonSchema)]
 pub struct CallbackQuery {
     code: Option<String>,
     state: Option<String>,
@@ -129,6 +133,34 @@ fn error_page() -> Response {
         html,
     )
         .into_response()
+}
+
+/// OpenAPI docs of [`start`], whose redirects aide can't infer.
+pub fn start_docs(op: TransformOperation<'_>) -> TransformOperation<'_> {
+    op.tag("Auth")
+        .summary("Start Google sign-in (browser)")
+        .description(
+            "Opened in the browser by the web app. Redirects to Google; on a server error, \
+             back to `return_to` with `#billo_error=server`.",
+        )
+        .response_with::<302, Redirect, _>(|r| r.description("To Google, or back to the app"))
+        .response_with::<400, axum::Json<ErrorBody>, _>(|r| {
+            r.description("`return_to` is missing or not an allowed app origin")
+        })
+}
+
+/// OpenAPI docs of [`callback`], whose redirects aide can't infer.
+pub fn callback_docs(op: TransformOperation<'_>) -> TransformOperation<'_> {
+    op.tag("Auth")
+        .summary("Google sign-in callback (browser)")
+        .description(
+            "Google redirects here. Redirects back to the app's `return_to` with \
+             `#billo_token=...` on success or `#billo_error=<code>` on failure.",
+        )
+        .response_with::<302, Redirect, _>(|r| r.description("Back to the app"))
+        .response_with::<400, Html<String>, _>(|r| {
+            r.description("The sign-in link expired or was already used")
+        })
 }
 
 /// `GET /auth/google/start`.

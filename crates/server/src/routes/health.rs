@@ -1,5 +1,6 @@
 //! `GET /api/v1/health`: version, build number and database reachability.
 
+use aide::transform::TransformOperation;
 use axum::Json;
 use axum::extract::State;
 use axum::http::StatusCode;
@@ -32,4 +33,15 @@ pub async fn health(State(state): State<AppState>) -> (StatusCode, Json<HealthRe
             build: build_number(),
         }),
     )
+}
+
+/// OpenAPI docs of [`health`]: aide can't infer the status from `(StatusCode, Json)`.
+pub fn docs(op: TransformOperation<'_>) -> TransformOperation<'_> {
+    op.tag("Health")
+        .summary("Check the server")
+        .description("Version, build number and whether the database is reachable.")
+        .response_with::<200, Json<HealthResponse>, _>(|r| r.description("Healthy"))
+        .response_with::<503, Json<HealthResponse>, _>(|r| {
+            r.description("Degraded: the database is unreachable")
+        })
 }

@@ -9,9 +9,9 @@
 
 use std::collections::{BTreeMap, HashMap};
 
-use axum::Router;
+use aide::axum::ApiRouter;
+use aide::axum::routing::{get_with, post_with};
 use axum::extract::{DefaultBodyLimit, State};
-use axum::routing::{get, post};
 use billo_api::Put;
 use billo_api::sync::{
     Change, DEFAULT_PULL_LIMIT, Entity, EntityState, MAX_PULL_LIMIT, MAX_PUSH_MUTATIONS, Mutation,
@@ -34,13 +34,29 @@ use crate::resources::transactions::Transactions;
 /// Largest push body: room for [`MAX_PUSH_MUTATIONS`] generous records.
 pub const PUSH_BODY_LIMIT: usize = 1024 * 1024;
 
-pub fn routes() -> Router<AppState> {
-    Router::new()
-        .route(
+pub fn routes() -> ApiRouter<AppState> {
+    ApiRouter::new()
+        .api_route(
             "/sync/push",
-            post(push).layer(DefaultBodyLimit::max(PUSH_BODY_LIMIT)),
+            post_with(push, |op| {
+                op.tag("Sync").summary("Push queued mutations").description(
+                    "Applies up to 200 mutations in order. Each `mutation_id` is applied at \
+                         most once; a replay returns the stored result. One rejected mutation \
+                         doesn't fail the batch, but mutations after a failed one are left for \
+                         a retry.",
+                )
+            })
+            .layer(DefaultBodyLimit::max(PUSH_BODY_LIMIT)),
         )
-        .route("/sync/pull", get(pull))
+        .api_route(
+            "/sync/pull",
+            get_with(pull, |op| {
+                op.tag("Sync").summary("Pull the change feed").description(
+                    "Changes after `since`, ordered by `seq`, each record at most once and \
+                         joined to its current state (deleted records as tombstones).",
+                )
+            }),
+        )
 }
 
 async fn push(

@@ -194,6 +194,12 @@ main h2 {
   font-size: 16px;
 }
 
+/* A page whose title sits in its first card (an account). */
+.card-head h2 {
+  margin: 0;
+  font-size: 17px;
+}
+
 .badge {
   font-size: 12px;
   font-weight: 500;

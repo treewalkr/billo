@@ -135,7 +135,7 @@ pub fn AccountPage(id: Uuid) -> Element {
         BackLink { to: Screen::Accounts }
         section { class: "card", id: "account-detail",
             div { class: "card-head",
-                h3 { "{record.data.name}" }
+                h2 { "{record.data.name}" }
                 span { class: "badge", "{s::kind_label(record.data.kind)}" }
             }
             Settings { data: record.data.clone() }

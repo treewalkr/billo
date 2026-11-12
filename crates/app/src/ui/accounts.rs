@@ -83,15 +83,16 @@ pub fn Accounts() -> Element {
                     section { class: "card",
                         ul { class: "list",
                             for a in items {
-                                li {
-                                    key: "{a.id}",
-                                    class: "clickable account",
-                                    onclick: move |_| nav.set(Screen::Account(a.id)),
-                                    div { class: "main",
-                                        span { class: "title", "{a.data.name}" }
-                                        span { class: "sub", "{summary(&a.data)}" }
+                                li { key: "{a.id}", class: "clickable account",
+                                    button {
+                                        class: "row-button",
+                                        onclick: move |_| nav.set(Screen::Account(a.id)),
+                                        span { class: "main",
+                                            span { class: "title", "{a.data.name}" }
+                                            span { class: "sub", "{summary(&a.data)}" }
+                                        }
+                                        span { class: "sub", "aria-hidden": "true", "›" }
                                     }
-                                    span { class: "sub", "›" }
                                 }
                             }
                         }

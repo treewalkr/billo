@@ -47,17 +47,20 @@ pub fn Categories() -> Element {
                                 li {
                                     key: "{c.id}",
                                     class: if depth > 0 { "clickable category child" } else { "clickable category" },
-                                    onclick: {
-                                        let c = c.clone();
-                                        move |_| nav.set(Screen::CategoryForm(Some(Box::new(c.clone()))))
-                                    },
-                                    div { class: "main",
-                                        span { class: "title", "{categories::name(&c.data)}" }
-                                        if let (Some(th), Some(_)) = (&c.data.name_th, &c.data.name_en) {
-                                            span { class: "sub", "{th}" }
+                                    button {
+                                        class: "row-button",
+                                        onclick: {
+                                            let c = c.clone();
+                                            move |_| nav.set(Screen::CategoryForm(Some(Box::new(c.clone()))))
+                                        },
+                                        span { class: "main",
+                                            span { class: "title", "{categories::name(&c.data)}" }
+                                            if let (Some(th), Some(_)) = (&c.data.name_th, &c.data.name_en) {
+                                                span { class: "sub", "{th}" }
+                                            }
                                         }
+                                        span { class: "sub", "aria-hidden": "true", "›" }
                                     }
-                                    span { class: "sub", "›" }
                                 }
                             }
                         }

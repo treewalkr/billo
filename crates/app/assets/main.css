@@ -409,8 +409,29 @@ form > button[type="submit"] {
   border-bottom: none;
 }
 
+/* A whole row that opens something: a real button, laid out like the row. */
 .list li.clickable {
-  cursor: pointer;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.row-button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 48px;
+  padding: 10px 0;
+  border-radius: 0;
+  background: none;
+  color: inherit;
+  font-size: inherit;
+  text-align: left;
+}
+
+.row-button .main {
+  display: block;
 }
 
 .list .main {

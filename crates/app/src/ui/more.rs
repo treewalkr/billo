@@ -22,14 +22,16 @@ pub fn More() -> Element {
         h2 { "{s::more()}" }
         section { class: "card",
             ul { class: "list",
-                li {
-                    class: "clickable",
-                    id: "open-categories",
-                    onclick: move |_| nav.set(Screen::Categories),
-                    div { class: "main",
-                        span { class: "title", "{s::categories()}" }
+                li { class: "clickable",
+                    button {
+                        class: "row-button",
+                        id: "open-categories",
+                        onclick: move |_| nav.set(Screen::Categories),
+                        span { class: "main",
+                            span { class: "title", "{s::categories()}" }
+                        }
+                        span { class: "sub", "aria-hidden": "true", "›" }
                     }
-                    span { class: "sub", "›" }
                 }
             }
         }

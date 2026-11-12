@@ -7,6 +7,10 @@
 - Sign in with your Google account on the web.
 - Pick a look under "More": Calm (quiet, like a bank statement) or Warm (softer, with rounder corners). Billo remembers your choice on this device.
 
+### Fixed
+
+- Lists of accounts, transactions, installment plans and categories now work with a keyboard and screen readers.
+
 ### Changed
 
 - A quieter, easier-to-read look: a bank-statement style with the IBM Plex Sans Thai typeface, and larger status labels.

@@ -93,19 +93,20 @@ pub fn TransactionList(account: Record<AccountData>) -> Element {
             rsx! {
                 ul { class: "list", id: "transactions",
                     for (t, title, sub, credit) in rows {
-                        li {
-                            key: "{t.id}",
-                            class: "clickable txn",
-                            onclick: {
-                                let account = account.clone();
-                                let t = t.clone();
-                                move |_| nav.set(Screen::TransactionForm(Box::new(account.clone()), Some(Box::new(t.clone()))))
-                            },
-                            div { class: "main",
-                                span { class: "title", "{title}" }
-                                span { class: "sub", "{sub}" }
+                        li { key: "{t.id}", class: "clickable txn",
+                            button {
+                                class: "row-button",
+                                onclick: {
+                                    let account = account.clone();
+                                    let t = t.clone();
+                                    move |_| nav.set(Screen::TransactionForm(Box::new(account.clone()), Some(Box::new(t.clone()))))
+                                },
+                                span { class: "main",
+                                    span { class: "title", "{title}" }
+                                    span { class: "sub", "{sub}" }
+                                }
+                                span { class: if credit { "amount credit" } else { "amount" }, "{amount_text(&t.data.amount)}" }
                             }
-                            span { class: if credit { "amount credit" } else { "amount" }, "{amount_text(&t.data.amount)}" }
                         }
                     }
                 }

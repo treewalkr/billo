@@ -10,6 +10,7 @@ use crate::api::{self, ApiError, Client};
 use crate::storage::{self, Session};
 use crate::store::{SignOutCheck, Store, SyncMsg, sign_out_check};
 use crate::strings::{self as s, Lang};
+use crate::web_login::{self, Returned};
 
 mod account_form;
 mod accounts;
@@ -69,6 +70,10 @@ impl Auth {
 pub fn use_auth() -> Auth {
     use_context::<Auth>()
 }
+
+/// The `billo_error` code the web Google sign-in came back with, if any.
+#[derive(Clone, Copy)]
+pub struct GoogleError(pub Signal<Option<String>>);
 
 /// Which screen is showing. Kept in app state (not the URL) for now.
 #[derive(Debug, Clone, PartialEq)]
@@ -210,6 +215,17 @@ pub fn App() -> Element {
     });
     use_context_provider(|| Language(language));
     let lang = language();
+    // Coming back from the web Google sign-in: keep its session before the saved one
+    // is loaded, or hold on to its error for the sign-in screen.
+    let returned_error = use_hook(|| match web_login::take() {
+        Some(Returned::Session(session)) => {
+            storage::save(&session);
+            None
+        }
+        Some(Returned::Error(code)) => Some(code),
+        None => None,
+    });
+    use_context_provider(|| GoogleError(Signal::new(returned_error)));
     let session = use_signal(storage::load);
     use_context_provider(|| Auth(session));
     use_context_provider(|| Signal::new(Screen::Home));

@@ -322,6 +322,7 @@ dependencies = [
  "billo-domain",
  "dioxus",
  "dirs",
+ "form_urlencoded",
  "futures-util",
  "idb",
  "js-sys",

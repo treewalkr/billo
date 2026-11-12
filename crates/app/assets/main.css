@@ -641,3 +641,38 @@ li.over .left {
   overflow-wrap: anywhere;
   white-space: pre-wrap;
 }
+
+/* Sign in with Google: white button with the "G" mark (Google branding guidance). */
+button.google {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  margin-top: 16px;
+  background: #fff;
+  color: #1f1f1f;
+  border: 1px solid #747775;
+  border-radius: 20px;
+  font-weight: 500;
+}
+button.google:hover:not(:disabled) {
+  background: #f8f9fa;
+}
+button.google .google-mark {
+  flex: none;
+}
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 20px 0 4px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.divider::before,
+.divider::after {
+  content: "";
+  flex: 1;
+  border-top: 1px solid var(--line);
+}

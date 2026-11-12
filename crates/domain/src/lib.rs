@@ -2,9 +2,13 @@
 //!
 //! No I/O, no clock, no randomness. Every input (including "today") is passed in.
 
+pub mod budget;
 pub mod money;
 pub mod planner;
 
+pub use budget::{
+    Budget, BudgetError, CategoryBudget, MonthlyBudget, SpendingItem, SpendingKind, monthly_budget,
+};
 pub use money::{Currency, Money, MoneyError};
 
 pub mod calendar;

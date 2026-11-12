@@ -21,6 +21,15 @@ docker compose up -d                      # Postgres + server on :8080
 curl localhost:8080/api/v1/health         # {"status":"ok","version":"0.1.0","build":1}
 ```
 
+Google sign-in isn't wired up yet. For local development the compose file sets `DEV_LOGIN=true`, which lets you sign in with just an email (never enable it in production):
+
+```bash
+curl -X POST localhost:8080/api/v1/auth/dev-login \
+  -H 'content-type: application/json' -d '{"email":"me@example.com"}'
+# {"token":"…","user_id":"…"}  → send as `Authorization: Bearer <token>`
+curl localhost:8080/api/v1/accounts -H "authorization: Bearer $TOKEN"
+```
+
 Web app (needs the [Dioxus CLI](https://dioxuslabs.com/learn/0.7/getting_started): `cargo install dioxus-cli --version 0.7.10 --locked`):
 
 ```bash

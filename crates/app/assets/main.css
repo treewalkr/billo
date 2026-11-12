@@ -31,6 +31,36 @@
   --dialog-shadow: 0 12px 32px rgba(22, 32, 46, 0.18);
 }
 
+
+[data-theme="warm"] {
+  /* Warm: softer and more personal. Soft shadows, rounder corners, more room. */
+  --font: "Anuphan", system-ui, -apple-system, "Segoe UI", "Noto Sans Thai", sans-serif;
+  --bg: #faf5ee;
+  --surface: #ffffff;
+  --surface-2: #f2e9dd;
+  --line: #ece2d4;
+  --control-line: #9c8b79;
+  --text: #2a2119;
+  --muted: #6b5a4b;
+  --accent: #a64721;
+  --on-accent: #ffffff;
+  --accent-soft: #f8e7dc;
+  --positive: #2f6a33;
+  --positive-soft: #e5f0e0;
+  --warning: #8a5000;
+  --warning-soft: #fbeed6;
+  --danger: #b42318;
+  --danger-soft: #fcebe9;
+  --on-danger: #ffffff;
+  --scrim: rgba(42, 33, 25, 0.4);
+  --radius: 16px;
+  --radius-control: 12px;
+  --card-pad: 20px;
+  --card-border: none;
+  --card-shadow: 0 1px 2px rgba(90, 60, 30, 0.06), 0 6px 18px rgba(90, 60, 30, 0.07);
+  --dialog-shadow: 0 16px 40px rgba(90, 60, 30, 0.2);
+}
+
 :root {
   font-family: var(--font);
   color: var(--text);

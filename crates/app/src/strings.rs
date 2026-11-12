@@ -312,6 +312,9 @@ table! {
     budgets_note: "Purchases and fees count as spending; refunds reduce it. Amounts in baht only.", "รายการซื้อและค่าธรรมเนียมนับเป็นรายจ่าย ส่วนเงินคืนจะนำมาหักออก นับเฉพาะยอดเงินบาท";
     cant_work_out_budget: "Can't work out this month's budget", "คำนวณงบเดือนนี้ไม่ได้";
     language: "Language", "ภาษา";
+    theme: "Theme", "ธีม";
+    theme_calm: "Calm", "สุขุม";
+    theme_warm: "Warm", "อบอุ่น";
     err_network: "Can't reach the server", "เชื่อมต่อเซิร์ฟเวอร์ไม่ได้";
     err_session_ended: "Your session has ended. Please sign in again.", "เซสชันหมดอายุแล้ว กรุณาเข้าสู่ระบบอีกครั้ง";
     err_not_found: "This item wasn't found on the server.", "ไม่พบรายการนี้บนเซิร์ฟเวอร์";

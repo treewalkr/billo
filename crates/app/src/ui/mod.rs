@@ -10,6 +10,7 @@ use crate::api::{self, ApiError, Client};
 use crate::storage::{self, Session};
 use crate::store::{SignOutCheck, Store, SyncMsg, sign_out_check};
 use crate::strings::{self as s, Lang};
+use crate::theme::{self, Theme};
 use crate::web_login::{self, Returned};
 
 mod account_form;
@@ -171,6 +172,26 @@ pub fn use_language() -> Language {
     use_context::<Language>()
 }
 
+/// The chosen theme, shared through context.
+#[derive(Clone, Copy)]
+pub struct ThemeChoice(Signal<Theme>);
+
+impl ThemeChoice {
+    pub fn get(&self) -> Theme {
+        *self.0.read()
+    }
+
+    pub fn set(mut self, t: Theme) {
+        theme::apply(t);
+        storage::save_theme(t);
+        self.0.set(t);
+    }
+}
+
+pub fn use_theme() -> ThemeChoice {
+    use_context::<ThemeChoice>()
+}
+
 /// The user's extra bank holidays, shared through context (device-only, see
 /// [`storage::load_holidays`]).
 #[derive(Clone, Copy)]
@@ -215,6 +236,13 @@ pub fn App() -> Element {
     });
     use_context_provider(|| Language(language));
     let lang = language();
+    let chosen = use_signal(|| {
+        let t = storage::load_theme();
+        theme::apply(t);
+        t
+    });
+    use_context_provider(|| ThemeChoice(chosen));
+    let theme_code = chosen().code();
     // Coming back from the web Google sign-in: keep its session before the saved one
     // is loaded, or hold on to its error for the sign-in screen.
     let returned_error = use_hook(|| match web_login::take() {
@@ -263,13 +291,14 @@ pub fn App() -> Element {
     rsx! {
         document::Title { "{s::APP_NAME}" }
         document::Stylesheet { href: MAIN_CSS }
-        crate::theme::Fonts {}
+        theme::Fonts {}
         if cfg!(target_arch = "wasm32") {
             WebHead {}
+            document::Meta { name: "theme-color", content: chosen().background() }
         }
         // Keyed by language: switching re-creates everything below in the new language.
         for l in [lang] {
-            div { key: "{l.code()}", class: "app", lang: l.code(), "data-theme": "calm",
+            div { key: "{l.code()}", class: "app", lang: l.code(), "data-theme": theme_code,
                 Header {}
                 main {
                     if signed_in && !ready {
@@ -486,6 +515,26 @@ pub fn LanguageSwitch() -> Element {
                     "aria-pressed": l == current,
                     onclick: move |_| language.set(l),
                     "{l.own_name()}"
+                }
+            }
+        }
+    }
+}
+
+/// Calm / Warm buttons.
+#[component]
+pub fn ThemeSwitch() -> Element {
+    let choice = use_theme();
+    let current = choice.get();
+    rsx! {
+        div { class: "lang-switch", role: "group", "aria-label": s::theme(),
+            for t in Theme::ALL {
+                button {
+                    id: "theme-{t.code()}",
+                    class: if t == current { "active" } else { "" },
+                    "aria-pressed": t == current,
+                    onclick: move |_| choice.set(t),
+                    "{t.label()}"
                 }
             }
         }

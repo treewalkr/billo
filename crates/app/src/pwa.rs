@@ -32,14 +32,13 @@ pub fn register_service_worker() {
     let _ = document::eval(&js);
 }
 
-/// Manifest, theme colour and icons, for the page head.
+/// Manifest and icons, for the page head (the theme colour follows the theme).
 #[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
 #[component]
 pub fn WebAppHead() -> Element {
     use_hook(register_service_worker);
     rsx! {
         document::Link { rel: "manifest", href: "/manifest.webmanifest" }
-        document::Meta { name: "theme-color", content: "#ffffff" }
         document::Link { rel: "icon", r#type: "image/png", href: "/icon-192.png" }
         document::Link { rel: "apple-touch-icon", href: "/icon-192.png" }
     }

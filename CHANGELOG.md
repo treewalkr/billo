@@ -5,6 +5,7 @@
 ### New
 
 - Sign in with your Google account on the web.
+- Pick a look under "More": Calm (quiet, like a bank statement) or Warm (softer, with rounder corners). Billo remembers your choice on this device.
 
 ### Changed
 

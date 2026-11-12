@@ -12,8 +12,12 @@ pub use calendar::{BusinessCalendar, EveryDay, WeekendCalendar};
 
 pub mod card;
 pub mod daycount;
+pub mod loan;
 
 pub mod rounding;
 
 pub use daycount::DayCount;
+pub use loan::{
+    ExtraPayment, LoanError, LoanMethod, LoanPayment, LoanSettings, LoanTerms, PaymentKind,
+};
 pub use rounding::{Rounding, RoundingMode};

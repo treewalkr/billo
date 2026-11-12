@@ -1,6 +1,6 @@
 //! Turning an annual rate into daily interest without floats.
 
-use time::Date;
+use time::{Date, Duration};
 
 /// How many days make a year when turning an annual rate into a daily one.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -32,5 +32,23 @@ impl DayCount {
     /// One day's interest on `balance_minor` at `rate_bp` a year, over [`DENOMINATOR`].
     pub(crate) fn day_numerator(self, balance_minor: i128, rate_bp: u32, day: Date) -> i128 {
         balance_minor * i128::from(rate_bp) * (LCM / self.days_in_year(day))
+    }
+
+    /// Interest on a constant balance for each day in `from..to` (end exclusive),
+    /// over [`DENOMINATOR`].
+    pub(crate) fn span_numerator(
+        self,
+        balance_minor: i128,
+        rate_bp: u32,
+        from: Date,
+        to: Date,
+    ) -> i128 {
+        let mut n = 0;
+        let mut day = from;
+        while day < to {
+            n += self.day_numerator(balance_minor, rate_bp, day);
+            day += Duration::DAY;
+        }
+        n
     }
 }

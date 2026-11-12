@@ -6,7 +6,10 @@ use billo_domain::{Currency, Money};
 use dioxus::prelude::*;
 use uuid::Uuid;
 
+use super::plans::PlanList;
+use super::transactions::TransactionList;
 use super::{ErrorBox, Loading, Screen, use_auth, use_nav};
+use crate::forms::is_card_like;
 use crate::{format, strings as s};
 
 /// List order of the groups.
@@ -134,6 +137,10 @@ pub fn AccountPage(id: Uuid) -> Element {
             Settings { data: record.data.clone() }
             AccountActions { record: record.clone() }
         }
+        if is_card_like(record.data.kind) {
+            PlanList { account: record.clone() }
+        }
+        TransactionList { account: record.clone() }
     }
 }
 

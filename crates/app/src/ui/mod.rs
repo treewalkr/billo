@@ -1,6 +1,6 @@
 //! The app shell: session, header and screens.
 
-use billo_api::{AccountData, AccountKind, Record};
+use billo_api::{AccountData, AccountKind, InstallmentPlanData, Record, TransactionData};
 use dioxus::prelude::*;
 use uuid::Uuid;
 
@@ -12,7 +12,9 @@ mod account_form;
 mod accounts;
 mod fields;
 mod home;
+mod plans;
 mod signin;
+mod transactions;
 
 const MAIN_CSS: Asset = asset!("/assets/main.css");
 
@@ -70,6 +72,16 @@ pub enum Screen {
     /// `None`: pick the kind first.
     NewAccount(Option<AccountKind>),
     EditAccount(Box<Record<AccountData>>),
+    /// Add (`None`) or edit a transaction on the account.
+    TransactionForm(
+        Box<Record<AccountData>>,
+        Option<Box<Record<TransactionData>>>,
+    ),
+    /// Add (`None`) or edit an installment plan on the card.
+    PlanForm(
+        Box<Record<AccountData>>,
+        Option<Box<Record<InstallmentPlanData>>>,
+    ),
 }
 
 impl Screen {
@@ -81,6 +93,14 @@ impl Screen {
             Self::Account(id) => format!("account-{id}"),
             Self::NewAccount(k) => format!("new-account-{k:?}"),
             Self::EditAccount(r) => format!("edit-account-{}-{}", r.id, r.version),
+            Self::TransactionForm(a, t) => match t {
+                Some(t) => format!("txn-{}-{}", t.id, t.version),
+                None => format!("new-txn-{}", a.id),
+            },
+            Self::PlanForm(a, p) => match p {
+                Some(p) => format!("plan-{}-{}", p.id, p.version),
+                None => format!("new-plan-{}", a.id),
+            },
         }
     }
 
@@ -143,6 +163,12 @@ fn Screens() -> Element {
         Screen::EditAccount(r) => {
             rsx! { account_form::AccountForm { kind: r.data.kind, existing: *r } }
         }
+        Screen::TransactionForm(a, t) => rsx! {
+            transactions::TransactionForm { account: *a, existing: t.map(|t| *t) }
+        },
+        Screen::PlanForm(a, p) => rsx! {
+            plans::PlanForm { account: *a, existing: p.map(|p| *p) }
+        },
     };
     rsx! {
         div { key: "{screen.key()}", {body} }

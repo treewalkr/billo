@@ -181,3 +181,56 @@ pub fn due_days_after(n: u16) -> String {
 pub fn due_on_day(day: u8) -> String {
     format!("due on day {day}")
 }
+
+// Transactions
+pub const TRANSACTIONS: &str = "Transactions";
+pub const ADD: &str = "Add";
+pub const NO_TRANSACTIONS: &str = "No transactions yet.";
+pub const ADD_TRANSACTION: &str = "Add transaction";
+pub const EDIT_TRANSACTION: &str = "Edit transaction";
+pub const TYPE: &str = "Type";
+pub const AMOUNT: &str = "Amount";
+pub const DATE: &str = "Date";
+pub const POSTING_DATE: &str = "Posting date";
+pub const POSTING_DATE_HINT: &str =
+    "When the charge reached the card. Leave blank if it's the same day.";
+pub const POSTED: &str = "posted";
+pub const CATEGORY: &str = "Category";
+pub const NO_CATEGORY: &str = "No category";
+pub const NEW_CATEGORY_OPTION: &str = "+ New category…";
+pub const NEW_CATEGORY_NAME: &str = "New category name";
+pub const NOTE: &str = "Note";
+pub const INTEREST_ADJUST_HINT: &str =
+    "Interest the bank charged that Billo didn't work out. Use a minus sign for a reversal.";
+
+use billo_api::TransactionKind;
+
+pub const fn transaction_kind_label(account: AccountKind, k: TransactionKind) -> &'static str {
+    let card = matches!(account, AccountKind::Card | AccountKind::Revolving);
+    match k {
+        TransactionKind::Expense if matches!(account, AccountKind::Revolving) => "Withdrawal",
+        TransactionKind::Expense if card => "Purchase",
+        TransactionKind::Expense => "Expense",
+        TransactionKind::Income if card => "Refund",
+        TransactionKind::Income => "Income",
+        TransactionKind::Payment => "Payment",
+        TransactionKind::Fee => "Fee",
+        TransactionKind::Transfer => "Transfer",
+        TransactionKind::InterestAdjust => "Interest charged",
+    }
+}
+
+// Installment plans
+pub const INSTALLMENT_PLANS: &str = "Installment plans";
+pub const NO_PLANS: &str = "No installment plans.";
+pub const ADD_PLAN: &str = "Add installment plan";
+pub const EDIT_PLAN: &str = "Edit installment plan";
+pub const PLAN_AMOUNT: &str = "Purchase amount";
+pub const MONTHLY_RATE: &str = "Monthly rate (%)";
+pub const MONTHLY_RATE_HINT: &str = "0 for 0% plans.";
+pub const FIRST_POSTING: &str = "First posting date";
+pub const FIRST_POSTING_HINT: &str = "When the first monthly portion appears on the card; the rest follow on the same day each month.";
+pub const FIRST_POSTING_SHORT: &str = "from";
+pub const PER_MONTH: &str = "/month";
+pub const PER_MONTH_RATE: &str = "a month";
+pub const INVALID_PLAN: &str = "Can't read this plan";

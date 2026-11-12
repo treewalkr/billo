@@ -6,11 +6,14 @@ use billo_api::rules::{
     AccountRules, CardSettings, DayCount, DueRule, DueShift, InterestSettings, InterestStart,
     LoanMethod, LoanSettings, MinPaymentSettings, RULES_VERSION, RoundingMode, RoundingSettings,
 };
-use billo_api::{AccountData, AccountKind};
+use billo_api::{
+    AccountData, AccountKind, CategoryKind, InstallmentPlanData, TransactionData, TransactionKind,
+};
 use billo_domain::Currency;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 use time::{Date, Duration};
+use uuid::Uuid;
 
 use crate::input::{field, optional, parse_amount, parse_date, parse_int, parse_percent_bp};
 use crate::{convert, format};
@@ -261,6 +264,191 @@ impl AccountDraft {
     }
 }
 
+/// Which transaction kinds make sense for an account, in menu order.
+pub fn transaction_kinds(account: AccountKind) -> &'static [TransactionKind] {
+    match account {
+        AccountKind::Card | AccountKind::Revolving => &[
+            TransactionKind::Expense,
+            TransactionKind::Payment,
+            TransactionKind::Fee,
+            TransactionKind::Income,
+            TransactionKind::InterestAdjust,
+        ],
+        AccountKind::Loan => &[TransactionKind::Payment, TransactionKind::Fee],
+        AccountKind::Cash | AccountKind::Bank => &[
+            TransactionKind::Expense,
+            TransactionKind::Income,
+            TransactionKind::Fee,
+        ],
+    }
+}
+
+/// Category kind matching a transaction kind (income vs. spending).
+pub fn category_kind(kind: TransactionKind) -> CategoryKind {
+    match kind {
+        TransactionKind::Income => CategoryKind::Income,
+        _ => CategoryKind::Expense,
+    }
+}
+
+/// `<select>` value for "create a new category".
+pub const NEW_CATEGORY: &str = "new";
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TransactionDraft {
+    pub kind: TransactionKind,
+    pub occurred_on: String,
+    pub posted_on: String,
+    pub amount: String,
+    /// A category id, `""` for none, or [`NEW_CATEGORY`].
+    pub category: String,
+    pub new_category: String,
+    pub note: String,
+    /// Fields the form doesn't edit, kept as they were.
+    pub keep: Option<TransactionData>,
+}
+
+impl TransactionDraft {
+    pub fn new(account: AccountKind, today: Date) -> Self {
+        Self {
+            kind: transaction_kinds(account)[0],
+            occurred_on: today.to_string(),
+            posted_on: String::new(),
+            amount: String::new(),
+            category: String::new(),
+            new_category: String::new(),
+            note: String::new(),
+            keep: None,
+        }
+    }
+
+    pub fn from_data(d: &TransactionData) -> Self {
+        let cur = Currency::from_code(&d.amount.currency).unwrap_or(Currency::Thb);
+        Self {
+            kind: d.kind,
+            occurred_on: d.occurred_on.to_string(),
+            posted_on: d.posted_on.map(|p| p.to_string()).unwrap_or_default(),
+            amount: format::plain_amount(d.amount.minor, cur),
+            category: d.category_id.map(|c| c.to_string()).unwrap_or_default(),
+            new_category: String::new(),
+            note: d.note.clone().unwrap_or_default(),
+            keep: Some(d.clone()),
+        }
+    }
+
+    /// The new category's name, when the user chose to create one.
+    pub fn new_category_name(&self) -> Result<Option<String>, String> {
+        if self.category != NEW_CATEGORY {
+            return Ok(None);
+        }
+        let name = self.new_category.trim();
+        if name.is_empty() {
+            return Err("New category: required".into());
+        }
+        Ok(Some(name.to_owned()))
+    }
+
+    /// Builds the transaction. `new_category_id` is the id of a category created for
+    /// this transaction, if any. Posting dates only apply to cards; blank means the
+    /// same day as the purchase.
+    pub fn to_data(
+        &self,
+        account_id: Uuid,
+        account: AccountKind,
+        currency: &str,
+        new_category_id: Option<Uuid>,
+    ) -> Result<TransactionData, String> {
+        let cur = convert::currency(currency).map_err(|e| e.to_string())?;
+        let occurred_on = field("Date", parse_date(&self.occurred_on))?;
+        let posted_on = if is_card_like(account) {
+            field("Posting date", optional(&self.posted_on, parse_date))?
+        } else {
+            None
+        };
+        if posted_on.is_some_and(|p| p < occurred_on) {
+            return Err("Posting date: can't be before the date".into());
+        }
+        let negative_ok = self.kind == TransactionKind::InterestAdjust;
+        let minor = field("Amount", parse_amount(&self.amount, cur, negative_ok))?;
+        if minor == 0 || (!negative_ok && minor < 0) {
+            return Err("Amount: must be more than zero".into());
+        }
+        let category_id = match (self.category.as_str(), new_category_id) {
+            (NEW_CATEGORY, id) => id,
+            ("", _) => None,
+            (id, _) => Some(Uuid::parse_str(id).map_err(|_| "Category: unknown".to_owned())?),
+        };
+        let note = self.note.trim();
+        let keep = self.keep.as_ref();
+        Ok(TransactionData {
+            account_id,
+            category_id,
+            occurred_on,
+            posted_on,
+            amount: billo_api::Money::new(minor, cur.code()),
+            orig_amount: keep.and_then(|k| k.orig_amount.clone()),
+            kind: self.kind,
+            transfer_peer_id: keep.and_then(|k| k.transfer_peer_id),
+            installment_plan_id: keep.and_then(|k| k.installment_plan_id),
+            note: (!note.is_empty()).then(|| note.to_owned()),
+        })
+    }
+}
+
+/// An installment plan on a card: principal, months, flat monthly rate, first posting.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PlanDraft {
+    pub principal: String,
+    pub months: String,
+    pub monthly_rate: String,
+    pub first_post_on: String,
+    pub keep: Option<InstallmentPlanData>,
+}
+
+impl PlanDraft {
+    pub fn new(today: Date) -> Self {
+        Self {
+            principal: String::new(),
+            months: "10".into(),
+            monthly_rate: "0".into(),
+            first_post_on: today.to_string(),
+            keep: None,
+        }
+    }
+
+    pub fn from_data(d: &InstallmentPlanData) -> Self {
+        let cur = Currency::from_code(&d.principal.currency).unwrap_or(Currency::Thb);
+        Self {
+            principal: format::plain_amount(d.principal.minor, cur),
+            months: d.months.to_string(),
+            monthly_rate: format::percent(d.monthly_rate_bp),
+            first_post_on: d.first_post_on.to_string(),
+            keep: Some(d.clone()),
+        }
+    }
+
+    pub fn to_data(&self, card_id: Uuid, currency: &str) -> Result<InstallmentPlanData, String> {
+        let cur = convert::currency(currency).map_err(|e| e.to_string())?;
+        let months = field("Months", parse_int(&self.months, 1, 120))?;
+        let keep = self.keep.as_ref();
+        let data = InstallmentPlanData {
+            card_account_id: card_id,
+            principal: billo_api::Money::new(
+                field("Amount", parse_amount(&self.principal, cur, false))?,
+                cur.code(),
+            ),
+            months: u16::try_from(months).map_err(|_| "Months: too large".to_owned())?,
+            monthly_rate_bp: field("Monthly rate", parse_percent_bp(&self.monthly_rate))?,
+            first_post_on: field("First posting", parse_date(&self.first_post_on))?,
+            closed_on: keep.and_then(|k| k.closed_on),
+            rounding: keep.map(|k| k.rounding).unwrap_or_default(),
+            remainder: keep.map(|k| k.remainder).unwrap_or_default(),
+        };
+        convert::installment_plan(&data).map_err(|e| e.to_string())?;
+        Ok(data)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -366,5 +554,114 @@ mod tests {
         let d = f.to_data().unwrap();
         assert_eq!(d.currency, "JPY");
         assert_eq!(d.rules, AccountRules::default());
+    }
+
+    fn txn_draft(amount: &str) -> TransactionDraft {
+        TransactionDraft {
+            amount: amount.into(),
+            ..TransactionDraft::new(AccountKind::Card, TODAY)
+        }
+    }
+
+    #[test]
+    fn transaction_draft_builds_data() {
+        let card = Uuid::nil();
+        let mut f = txn_draft("1,234.50");
+        f.posted_on = "2026-11-13".into();
+        f.note = "  shoes ".into();
+        let d = f.to_data(card, AccountKind::Card, "THB", None).unwrap();
+        assert_eq!(d.kind, TransactionKind::Expense);
+        assert_eq!(d.amount, billo_api::Money::new(123_450, "THB"));
+        assert_eq!(d.occurred_on, TODAY);
+        assert_eq!(d.posted_on, Some(date!(2026 - 11 - 13)));
+        assert_eq!(d.note.as_deref(), Some("shoes"));
+        assert_eq!(d.category_id, None);
+        assert_eq!(
+            TransactionDraft::from_data(&d).to_data(card, AccountKind::Card, "THB", None),
+            Ok(d)
+        );
+    }
+
+    #[test]
+    fn transaction_draft_checks_amount_and_dates() {
+        let card = Uuid::nil();
+        assert_eq!(
+            txn_draft("0").to_data(card, AccountKind::Card, "THB", None),
+            Err("Amount: must be more than zero".into())
+        );
+        assert_eq!(
+            txn_draft("-5").to_data(card, AccountKind::Card, "THB", None),
+            Err("Amount: can't be negative".into())
+        );
+        let mut f = txn_draft("-5");
+        f.kind = TransactionKind::InterestAdjust;
+        assert_eq!(
+            f.to_data(card, AccountKind::Card, "THB", None)
+                .unwrap()
+                .amount
+                .minor,
+            -500
+        );
+        let mut f = txn_draft("5");
+        f.posted_on = "2026-11-01".into();
+        assert!(f.to_data(card, AccountKind::Card, "THB", None).is_err());
+        // Posting dates are ignored outside cards.
+        assert_eq!(
+            f.to_data(card, AccountKind::Bank, "THB", None)
+                .unwrap()
+                .posted_on,
+            None
+        );
+    }
+
+    #[test]
+    fn transaction_draft_categories() {
+        let card = Uuid::nil();
+        let cat = Uuid::from_u128(7);
+        let mut f = txn_draft("5");
+        f.category = cat.to_string();
+        assert_eq!(
+            f.to_data(card, AccountKind::Card, "THB", None)
+                .unwrap()
+                .category_id,
+            Some(cat)
+        );
+        f.category = NEW_CATEGORY.into();
+        assert_eq!(f.new_category_name(), Err("New category: required".into()));
+        f.new_category = " Food ".into();
+        assert_eq!(f.new_category_name(), Ok(Some("Food".into())));
+        assert_eq!(
+            f.to_data(card, AccountKind::Card, "THB", Some(cat))
+                .unwrap()
+                .category_id,
+            Some(cat)
+        );
+    }
+
+    #[test]
+    fn plan_draft_builds_data() {
+        let card = Uuid::nil();
+        let f = PlanDraft {
+            principal: "12,000".into(),
+            months: "6".into(),
+            monthly_rate: "0.69".into(),
+            first_post_on: "2026-10-15".into(),
+            keep: None,
+        };
+        let d = f.to_data(card, "THB").unwrap();
+        assert_eq!(d.principal, billo_api::Money::new(1_200_000, "THB"));
+        assert_eq!(d.months, 6);
+        assert_eq!(d.monthly_rate_bp, 69);
+        assert_eq!(d.first_post_on, date!(2026 - 10 - 15));
+        assert_eq!(PlanDraft::from_data(&d).to_data(card, "THB"), Ok(d));
+
+        let bad = PlanDraft {
+            months: "0".into(),
+            ..f
+        };
+        assert_eq!(
+            bad.to_data(card, "THB"),
+            Err("Months: must be 1 to 120".into())
+        );
     }
 }

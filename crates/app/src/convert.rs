@@ -6,10 +6,11 @@
 
 use std::fmt;
 
+use billo_api::InstallmentPlanData;
 use billo_api::rules::{self, CardSettings, LoanSettings, RoundingSettings};
 use billo_domain::card::{
-    CardRules, CreditLine, CycleRules, DueRule, DueShift, InterestRules, InterestStart,
-    MinPaymentRule,
+    CardRules, CreditLine, CycleRules, DueRule, DueShift, InstallmentPlan, InterestRules,
+    InterestStart, MinPaymentRule, Remainder,
 };
 use billo_domain::{Currency, DayCount, LoanMethod, LoanTerms, Money, Rounding, RoundingMode};
 
@@ -31,6 +32,10 @@ fn invalid(what: &str, e: impl fmt::Display) -> Invalid {
 
 pub fn currency(code: &str) -> Result<Currency, Invalid> {
     Currency::from_code(code).ok_or_else(|| Invalid(format!("unsupported currency {code}")))
+}
+
+pub fn money(m: &billo_api::Money) -> Result<Money, Invalid> {
+    Ok(Money::new(m.minor, currency(&m.currency)?))
 }
 
 pub fn rounding(what: &str, r: RoundingSettings) -> Result<Rounding, Invalid> {
@@ -97,6 +102,22 @@ pub fn card_rules(
         },
         limit,
     ))
+}
+
+pub fn installment_plan(p: &InstallmentPlanData) -> Result<InstallmentPlan, Invalid> {
+    let remainder = match p.remainder {
+        billo_api::Remainder::First => Remainder::First,
+        billo_api::Remainder::Last => Remainder::Last,
+    };
+    InstallmentPlan::new(
+        money(&p.principal)?,
+        p.months,
+        p.monthly_rate_bp,
+        p.first_post_on,
+        rounding("Installment rounding", p.rounding)?,
+        remainder,
+    )
+    .map_err(|e| invalid("Installment plan", e))
 }
 
 pub fn loan_terms(s: &LoanSettings, currency: Currency) -> Result<LoanTerms, Invalid> {
@@ -212,9 +233,37 @@ pub(crate) mod tests {
         assert!(loan_terms(&bad, Currency::Thb).is_err());
     }
 
+    pub fn plan(principal_minor: i64, months: u16, rate_bp: u32) -> InstallmentPlanData {
+        InstallmentPlanData {
+            card_account_id: uuid::Uuid::nil(),
+            principal: billo_api::Money::new(principal_minor, "THB"),
+            months,
+            monthly_rate_bp: rate_bp,
+            first_post_on: date!(2026 - 10 - 15),
+            closed_on: None,
+            rounding: RoundingSettings::default(),
+            remainder: billo_api::Remainder::Last,
+        }
+    }
+
+    #[test]
+    fn installment_plans() {
+        let p = installment_plan(&plan(1_200_000, 6, 0)).unwrap();
+        assert_eq!(p.months(), 6);
+        assert_eq!(p.schedule()[0].amount(), Money::new(200_000, Currency::Thb));
+        assert_eq!(p.schedule()[1].posting_date, date!(2026 - 11 - 15));
+        assert!(installment_plan(&plan(1_200_000, 0, 0)).is_err());
+        assert!(installment_plan(&plan(-1, 6, 0)).is_err());
+    }
+
     #[test]
     fn currencies() {
         assert_eq!(currency("THB"), Ok(Currency::Thb));
         assert!(currency("XYZ").is_err());
+        assert_eq!(
+            money(&billo_api::Money::new(5, "USD")),
+            Ok(Money::new(5, Currency::Usd))
+        );
+        assert!(money(&billo_api::Money::new(5, "XYZ")).is_err());
     }
 }

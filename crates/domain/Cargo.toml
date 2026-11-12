@@ -8,7 +8,7 @@ repository.workspace = true
 publish = false
 
 [dependencies]
-time = { version = "0.3", default-features = false }
+time = { version = "0.3", default-features = false, features = ["macros"] }
 
 [lints]
 workspace = true

@@ -136,6 +136,13 @@ table! {
     app_label: "Billo app", "แอป Billo";
     account_title: "Account", "บัญชีผู้ใช้";
     about: "About", "เกี่ยวกับ";
+    holidays_title: "Bank holidays", "วันหยุดธนาคาร";
+    holidays_note: "Due dates set to move off non-business days skip weekends and the Bank of Thailand's bank holidays for 2026 and 2027. Add any other day your bank is closed, such as a regional holiday.", "วันครบกำหนดชำระที่ตั้งให้เลื่อนเมื่อตรงกับวันหยุด จะข้ามวันเสาร์-อาทิตย์และวันหยุดสถาบันการเงินตามประกาศธนาคารแห่งประเทศไทยปี 2569 และ 2570 คุณเพิ่มวันอื่นที่ธนาคารปิดได้ เช่น วันหยุดเฉพาะพื้นที่";
+    extra_holidays: "Your extra holidays", "วันหยุดที่คุณเพิ่ม";
+    no_extra_holidays: "None added.", "ยังไม่ได้เพิ่ม";
+    holidays_device_only: "Saved on this device only.", "บันทึกไว้ในอุปกรณ์นี้เท่านั้น";
+    holiday_date: "Holiday date", "วันหยุด";
+    remove: "Remove", "เอาออก";
     offline: "offline", "ออฟไลน์";
     offline_label: "Offline", "ออฟไลน์";
     sync_title: "Sync", "การซิงค์";

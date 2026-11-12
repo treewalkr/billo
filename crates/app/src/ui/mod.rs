@@ -166,6 +166,41 @@ pub fn use_language() -> Language {
     use_context::<Language>()
 }
 
+/// The user's extra bank holidays, shared through context (device-only, see
+/// [`storage::load_holidays`]).
+#[derive(Clone, Copy)]
+pub struct Holidays(Signal<Vec<time::Date>>);
+
+impl Holidays {
+    pub fn get(&self) -> Vec<time::Date> {
+        self.0.read().clone()
+    }
+
+    /// The calendar due dates shift on: weekends, Thai bank holidays and these.
+    pub fn calendar(&self) -> billo_domain::WeekendCalendar {
+        billo_domain::WeekendCalendar::thai(self.get())
+    }
+
+    pub fn add(mut self, date: time::Date) {
+        let mut list = self.0.write();
+        if !list.contains(&date) {
+            list.push(date);
+            list.sort_unstable();
+            storage::save_holidays(&list);
+        }
+    }
+
+    pub fn remove(mut self, date: time::Date) {
+        let mut list = self.0.write();
+        list.retain(|d| *d != date);
+        storage::save_holidays(&list);
+    }
+}
+
+pub fn use_holidays() -> Holidays {
+    use_context::<Holidays>()
+}
+
 #[component]
 pub fn App() -> Element {
     let language = use_signal(|| {
@@ -178,6 +213,7 @@ pub fn App() -> Element {
     let session = use_signal(storage::load);
     use_context_provider(|| Auth(session));
     use_context_provider(|| Signal::new(Screen::Home));
+    use_context_provider(|| Holidays(Signal::new(storage::load_holidays())));
     use_context_provider(|| SignOut {
         prompt: Signal::new(None),
         busy: Signal::new(false),

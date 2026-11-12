@@ -269,6 +269,36 @@ mod tests {
     }
 
     #[test]
+    fn holiday_due_date_shifts_past_holidays_and_weekend() {
+        let cal = WeekendCalendar::thai([]);
+        // Statement 25 March 2026, due on the 13th: Mon 13 April 2026 is Songkran
+        // (13–15), so the next business day is Thu 16 April.
+        let next = CycleRules::new(25, DueRule::DayOfMonth(13), DueShift::Next).unwrap();
+        let prev = CycleRules::new(25, DueRule::DayOfMonth(13), DueShift::Previous).unwrap();
+        assert_eq!(
+            next.period_for_month(2026, Month::March, &cal).due_date,
+            date!(2026 - 04 - 16)
+        );
+        // Back past the weekend of 11–12 April.
+        assert_eq!(
+            prev.period_for_month(2026, Month::March, &cal).due_date,
+            date!(2026 - 04 - 10)
+        );
+        // Due Sat 5 December 2026: weekend, then the substitute holiday Mon 7.
+        let dec = CycleRules::new(15, DueRule::DaysAfterStatement(20), DueShift::Next).unwrap();
+        assert_eq!(
+            dec.period_for_month(2026, Month::November, &cal).due_date,
+            date!(2026 - 12 - 08)
+        );
+        // Weekends only: the same due date only skips the weekend.
+        assert_eq!(
+            dec.period_for_month(2026, Month::November, &WeekendCalendar::new())
+                .due_date,
+            date!(2026 - 12 - 07)
+        );
+    }
+
+    #[test]
     fn rejects_invalid_rules() {
         assert_eq!(
             CycleRules::new(0, DueRule::DaysAfterStatement(20), DueShift::None),

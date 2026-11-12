@@ -12,7 +12,7 @@ use billo_api::{
 use billo_domain::card::{
     CardRules, Entry, EntryKind, InstallmentPlan, Statement, StatementPeriod,
 };
-use billo_domain::{BusinessCalendar, Currency, LoanPayment, Money, PaymentKind, WeekendCalendar};
+use billo_domain::{BusinessCalendar, Currency, LoanPayment, Money, PaymentKind};
 use time::{Date, Duration};
 use uuid::Uuid;
 
@@ -94,8 +94,8 @@ pub fn this_month(
     transactions: &[Record<TransactionData>],
     plans: &[Record<InstallmentPlanData>],
     today: Date,
+    cal: &impl BusinessCalendar,
 ) -> ThisMonth {
-    let cal = WeekendCalendar::new();
     let mut out = ThisMonth::default();
     for a in accounts {
         let txns: Vec<TransactionData> = transactions
@@ -110,7 +110,7 @@ pub fn this_month(
                     .filter(|p| p.data.card_account_id == a.id)
                     .map(|p| p.data.clone())
                     .collect();
-                card_due(&a.data, &txns, &card_plans, today, &cal).map(|dues| {
+                card_due(&a.data, &txns, &card_plans, today, cal).map(|dues| {
                     dues.into_iter()
                         .map(|d| (d.statement.period.due_date, Detail::Card(d)))
                         .collect::<Vec<_>>()
@@ -378,6 +378,7 @@ mod tests {
     use super::*;
     use crate::convert::tests::{card_settings, plan, txn};
     use billo_api::rules::{AccountRules, DayCount, LoanMethod, LoanSettings, RoundingSettings};
+    use billo_domain::WeekendCalendar;
     use time::OffsetDateTime;
     use time::macros::date;
 
@@ -573,6 +574,29 @@ mod tests {
     }
 
     #[test]
+    fn due_dates_skip_thai_bank_holidays() {
+        // Cut-off 15 Nov 2026 + 20 days = Sat 5 Dec; Mon 7 Dec is a bank holiday.
+        let mut c = card();
+        c.rules.card.as_mut().unwrap().statement_day = 15;
+        let accounts = vec![record(1, c)];
+        let due = |cal: &WeekendCalendar| {
+            this_month(&accounts, &[], &[], TODAY, cal)
+                .items
+                .iter()
+                .map(|i| i.due_date)
+                .max()
+                .unwrap()
+        };
+        assert_eq!(due(&WeekendCalendar::new()), date!(2026 - 12 - 07));
+        assert_eq!(due(&WeekendCalendar::thai([])), date!(2026 - 12 - 08));
+        // A user's extra holiday on Tue 8 Dec moves it again.
+        assert_eq!(
+            due(&WeekendCalendar::thai([date!(2026 - 12 - 08)])),
+            date!(2026 - 12 - 09)
+        );
+    }
+
+    #[test]
     fn bad_settings_become_item_errors() {
         let mut broken = card();
         broken.name = "Broken".into();
@@ -581,7 +605,7 @@ mod tests {
         no_settings.name = "Bare".into();
         no_settings.rules.card = None;
         let accounts = vec![record(1, card()), record(2, broken), record(3, no_settings)];
-        let m = this_month(&accounts, &[], &[], TODAY);
+        let m = this_month(&accounts, &[], &[], TODAY, &WeekendCalendar::new());
         assert_eq!(m.items.len(), 1);
         assert_eq!(m.errors.len(), 2);
         assert_eq!(m.errors[0].account_name, "Broken");
@@ -656,7 +680,7 @@ mod tests {
                 record(200, p)
             })
             .collect();
-        let m = this_month(&accounts, &txns, &plans, TODAY);
+        let m = this_month(&accounts, &txns, &plans, TODAY, &WeekendCalendar::new());
         assert!(m.errors.is_empty(), "{:?}", m.errors);
         let dates: Vec<Date> = m.items.iter().map(|i| i.due_date).collect();
         assert_eq!(

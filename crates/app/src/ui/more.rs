@@ -3,10 +3,12 @@
 use dioxus::prelude::*;
 
 use super::sync::SyncCard;
-use super::{LanguageSwitch, Screen, sign_out, use_auth, use_nav, use_sign_out};
+use super::{
+    ErrorBox, LanguageSwitch, Screen, sign_out, use_auth, use_holidays, use_nav, use_sign_out,
+};
 use crate::api::{self, Client};
 use crate::store::use_store;
-use crate::strings as s;
+use crate::{format, input, strings as s};
 
 #[component]
 pub fn More() -> Element {
@@ -31,6 +33,7 @@ pub fn More() -> Element {
             }
         }
         SyncCard {}
+        HolidaysCard {}
         section { class: "card", id: "language",
             div { class: "card-head",
                 h3 { "{s::language()}" }
@@ -91,6 +94,66 @@ fn About() -> Element {
                     dd { id: "server-version", title: api::BASE_URL, "{server}" }
                 }
             }
+        }
+    }
+}
+
+/// Built-in Thai bank holidays, and the user's own extra days.
+#[component]
+fn HolidaysCard() -> Element {
+    let holidays = use_holidays();
+    let list = holidays.get();
+    let mut text = use_signal(String::new);
+    let mut error = use_signal(|| None::<String>);
+    let add = move |e: FormEvent| {
+        e.prevent_default();
+        match input::field(s::holiday_date(), input::parse_date(&text())) {
+            Ok(d) => {
+                holidays.add(d);
+                text.set(String::new());
+                error.set(None);
+            }
+            Err(msg) => error.set(Some(msg)),
+        }
+    };
+    rsx! {
+        section { class: "card", id: "holidays",
+            h3 { "{s::holidays_title()}" }
+            p { class: "note", "{s::holidays_note()}" }
+            h4 { "{s::extra_holidays()}" }
+            if list.is_empty() {
+                p { class: "note", id: "no-extra-holidays", "{s::no_extra_holidays()}" }
+            } else {
+                ul { class: "list", id: "extra-holidays",
+                    for d in list {
+                        li { key: "{d}",
+                            div { class: "main",
+                                span { class: "title", "{format::date(d)}" }
+                            }
+                            button {
+                                class: "link",
+                                "aria-label": "{s::remove()} {format::date(d)}",
+                                onclick: move |_| holidays.remove(d),
+                                "{s::remove()}"
+                            }
+                        }
+                    }
+                }
+            }
+            form { class: "inline-add", onsubmit: add,
+                label { r#for: "holiday-date", class: "sr-only", "{s::holiday_date()}" }
+                input {
+                    id: "holiday-date",
+                    r#type: "date",
+                    value: "{text}",
+                    oninput: move |e| text.set(e.value()),
+                }
+                button { r#type: "submit", class: "secondary", id: "add-holiday", "{s::add()}" }
+            }
+            if let Some(msg) = error() {
+                ErrorBox { message: msg }
+            }
+            p { class: "note", "{s::holidays_device_only()}" }
         }
     }
 }

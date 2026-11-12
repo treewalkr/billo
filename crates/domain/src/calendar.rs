@@ -45,6 +45,12 @@ impl WeekendCalendar {
             holidays: holidays.into_iter().collect(),
         }
     }
+
+    /// Weekends plus Thai bank holidays ([`crate::holidays::th`]) plus `extra` days
+    /// (e.g. ones the user added).
+    pub fn thai(extra: impl IntoIterator<Item = Date>) -> Self {
+        Self::with_holidays(crate::holidays::th::dates().chain(extra))
+    }
 }
 
 impl BusinessCalendar for WeekendCalendar {
@@ -107,6 +113,41 @@ mod tests {
         assert_eq!(
             cal.next_business_day(date!(2026 - 12 - 05)),
             date!(2026 - 12 - 08)
+        );
+    }
+
+    #[test]
+    fn thai_holidays_and_weekend_shift_together() {
+        let cal = WeekendCalendar::thai([]);
+        // Sat 11 + Sun 12 April 2026, then Songkran Mon 13 – Wed 15.
+        assert_eq!(
+            cal.next_business_day(date!(2026 - 04 - 11)),
+            date!(2026 - 04 - 16)
+        );
+        assert_eq!(
+            cal.next_business_day(date!(2026 - 04 - 14)),
+            date!(2026 - 04 - 16)
+        );
+        assert_eq!(
+            cal.previous_business_day(date!(2026 - 04 - 15)),
+            date!(2026 - 04 - 10)
+        );
+        // Sat 5 + Sun 6 December 2026, then the substitute holiday Mon 7.
+        assert_eq!(
+            cal.next_business_day(date!(2026 - 12 - 05)),
+            date!(2026 - 12 - 08)
+        );
+        // Thu 31 Dec 2026, Fri 1 Jan 2027, weekend → Mon 4 Jan 2027.
+        assert_eq!(
+            cal.next_business_day(date!(2026 - 12 - 31)),
+            date!(2027 - 01 - 04)
+        );
+        // A user's extra day (16 Oct 2026, Bangkok only) is added on top.
+        assert!(cal.is_business_day(date!(2026 - 10 - 16)));
+        let bkk = WeekendCalendar::thai([date!(2026 - 10 - 16)]);
+        assert_eq!(
+            bkk.next_business_day(date!(2026 - 10 - 16)),
+            date!(2026 - 10 - 19)
         );
     }
 

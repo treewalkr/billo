@@ -1,10 +1,12 @@
-//! Keeps the signed-in session and the language choice across restarts.
+//! Keeps the signed-in session, the language choice and the user's extra bank holidays
+//! across restarts.
 //!
 //! Web: `localStorage`. Native: a JSON file in the app's data directory.
 //! TODO: move the native token to the Keychain (iOS) / Keystore (Android), per
 //! architecture §6, before any real release.
 
 use serde::{Deserialize, Serialize};
+use time::Date;
 use uuid::Uuid;
 
 use crate::strings::Lang;
@@ -19,6 +21,7 @@ pub struct Session {
 
 const SESSION: &str = "billo.session";
 const LANG: &str = "billo.lang";
+const HOLIDAYS: &str = "billo.holidays";
 
 /// The saved session, if any. A corrupt entry counts as signed out.
 pub fn load() -> Option<Session> {
@@ -46,6 +49,63 @@ pub fn load_lang() -> Lang {
 pub fn save_lang(lang: Lang) {
     if let Ok(json) = serde_json::to_string(&lang) {
         backend::write(LANG, &json);
+    }
+}
+
+/// Extra bank holidays the user added (on top of the built-in Thai ones), sorted.
+/// Device-only for now: not synced, kept when signing out like the language.
+pub fn load_holidays() -> Vec<Date> {
+    backend::read(HOLIDAYS)
+        .map(|json| decode_holidays(&json))
+        .unwrap_or_default()
+}
+
+pub fn save_holidays(dates: &[Date]) {
+    backend::write(HOLIDAYS, &encode_holidays(dates));
+}
+
+/// `["2026-10-16", …]`.
+fn encode_holidays(dates: &[Date]) -> String {
+    let list: Vec<String> = dates.iter().map(|d| iso_date(*d)).collect();
+    serde_json::to_string(&list).unwrap_or_else(|_| "[]".to_owned())
+}
+
+/// Unreadable entries are skipped; the result is sorted and without repeats.
+fn decode_holidays(json: &str) -> Vec<Date> {
+    let list: Vec<String> = serde_json::from_str(json).unwrap_or_default();
+    let mut dates: Vec<Date> = list
+        .iter()
+        .filter_map(|s| crate::input::parse_date(s).ok())
+        .collect();
+    dates.sort_unstable();
+    dates.dedup();
+    dates
+}
+
+fn iso_date(d: Date) -> String {
+    format!("{:04}-{:02}-{:02}", d.year(), u8::from(d.month()), d.day())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use time::macros::date;
+
+    #[test]
+    fn holidays_round_trip() {
+        let dates = [date!(2026 - 10 - 16), date!(2027 - 03 - 10)];
+        let json = encode_holidays(&dates);
+        assert_eq!(json, r#"["2026-10-16","2027-03-10"]"#);
+        assert_eq!(decode_holidays(&json), dates);
+    }
+
+    #[test]
+    fn bad_holiday_entries_are_skipped() {
+        assert_eq!(
+            decode_holidays(r#"["2027-03-10","nope","2026-10-16","2026-10-16"]"#),
+            [date!(2026 - 10 - 16), date!(2027 - 03 - 10)]
+        );
+        assert!(decode_holidays("not json").is_empty());
     }
 }
 

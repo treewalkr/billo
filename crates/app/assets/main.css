@@ -585,3 +585,34 @@ li.over .left {
   background: var(--danger);
   color: #fff;
 }
+
+#holidays h4 {
+  margin: 12px 0 4px;
+  font-size: 14px;
+}
+
+.inline-add {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.inline-add input {
+  flex: 1;
+  min-width: 0;
+}
+
+.inline-add > button[type="submit"] {
+  width: auto;
+  margin-top: 0;
+  flex-shrink: 0;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}

@@ -4,7 +4,7 @@ use billo_api::TransactionQuery;
 use dioxus::prelude::*;
 
 use super::categories::StarterOffer;
-use super::{ErrorBox, Loading, Screen, use_nav};
+use super::{ErrorBox, Loading, Screen, use_holidays, use_nav};
 use crate::api::ApiError;
 use crate::overview::{self, CardDue, Detail, Item, LoanDue, Status, ThisMonth};
 use crate::store::use_store;
@@ -14,7 +14,10 @@ use crate::{clock, format, strings as s};
 pub fn Home() -> Element {
     let store = use_store();
     let mut nav = use_nav();
+    let holidays = use_holidays();
     let mut data = use_resource(move || async move {
+        // Read before awaiting, so a change in More re-runs this.
+        let cal = holidays.calendar();
         let (accounts, txns, plans) = store
             .call(|c| async move {
                 let accounts = c.accounts().await?;
@@ -27,7 +30,7 @@ pub fn Home() -> Element {
         Ok::<_, ApiError>((
             today,
             accounts.is_empty(),
-            overview::this_month(&accounts, &txns, &plans, today),
+            overview::this_month(&accounts, &txns, &plans, today, &cal),
         ))
     });
 

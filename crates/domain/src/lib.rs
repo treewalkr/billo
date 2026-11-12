@@ -15,6 +15,8 @@ pub mod calendar;
 
 pub use calendar::{BusinessCalendar, EveryDay, WeekendCalendar};
 
+pub mod holidays;
+
 pub mod card;
 pub mod daycount;
 pub mod loan;

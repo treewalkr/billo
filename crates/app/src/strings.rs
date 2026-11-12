@@ -132,7 +132,10 @@ table! {
     dev_login_off: "This server doesn't allow development sign-in (DEV_LOGIN is off). Google sign-in isn't available yet.", "เซิร์ฟเวอร์นี้ไม่เปิดให้เข้าสู่ระบบแบบนักพัฒนา (DEV_LOGIN ปิดอยู่) และยังใช้การเข้าสู่ระบบด้วย Google ไม่ได้";
     email_required: "Enter an email address.", "กรุณากรอกอีเมล";
     signed_in_as: "Signed in as", "เข้าสู่ระบบในชื่อ";
-    server: "server", "เซิร์ฟเวอร์";
+    server: "Server", "เซิร์ฟเวอร์";
+    app_label: "Billo app", "แอป Billo";
+    account_title: "Account", "บัญชีผู้ใช้";
+    about: "About", "เกี่ยวกับ";
     offline: "offline", "ออฟไลน์";
     offline_label: "Offline", "ออฟไลน์";
     sync_title: "Sync", "การซิงค์";
@@ -441,6 +444,11 @@ pub fn due_days_after(n: u16) -> String {
         Lang::En => format!("due {n} days later"),
         Lang::Th => format!("ครบกำหนดชำระ {n} วันหลังสรุปยอด"),
     }
+}
+
+/// A version as shown to users: `v0.1.5 (12)`.
+pub fn version_build(version: &str, build: u32) -> String {
+    format!("v{version} ({build})")
 }
 
 pub fn due_on_day(day: u8) -> String {

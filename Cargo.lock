@@ -308,6 +308,7 @@ dependencies = [
  "sys-locale",
  "time",
  "tokio",
+ "toml 1.2.1+spec-1.1.0",
  "uuid",
  "wasm-bindgen",
  "wasm-bindgen-futures",

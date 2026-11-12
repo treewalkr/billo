@@ -22,37 +22,9 @@ header {
   border-bottom: 1px solid var(--line);
 }
 
-header .brand {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-}
-
 header h1 {
   margin: 0;
   font-size: 20px;
-}
-
-header .server,
-header .who {
-  font-size: 13px;
-  color: var(--muted);
-}
-
-header .who {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
-
-header .who button {
-  white-space: nowrap;
-}
-
-header .who span {
-  overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
@@ -80,6 +52,19 @@ main h2 {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+}
+
+.card > h3 {
+  margin: 0 0 8px;
+  font-size: 16px;
+}
+
+#account .main {
+  min-width: 0;
+}
+
+#account .title {
+  overflow-wrap: anywhere;
 }
 
 .card-head h3 {
@@ -507,10 +492,6 @@ li.over .left {
   color: #44474d;
   white-space: nowrap;
   flex-shrink: 0;
-}
-
-header .who span.sync-status {
-  overflow: visible;
 }
 
 .sync-status.synced {

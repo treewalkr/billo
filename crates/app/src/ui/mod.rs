@@ -8,7 +8,7 @@ use uuid::Uuid;
 
 use crate::api::{self, ApiError, Client};
 use crate::storage::{self, Session};
-use crate::store::{SignOutCheck, Store, SyncMsg, sign_out_check, use_store};
+use crate::store::{SignOutCheck, Store, SyncMsg, sign_out_check};
 use crate::strings::{self as s, Lang};
 
 mod account_form;
@@ -181,6 +181,7 @@ pub fn App() -> Element {
     use_context_provider(|| SignOut {
         prompt: Signal::new(None),
         busy: Signal::new(false),
+        scope: dioxus::dioxus_core::current_scope_id(),
     });
     let signed_in = session.read().is_some();
     let auth = Auth(session);
@@ -285,38 +286,16 @@ fn Screens() -> Element {
     }
 }
 
+/// App name and sync status only: the account and versions live in More, so nothing
+/// here wraps on a narrow phone.
 #[component]
 fn Header() -> Element {
     let auth = use_auth();
-    let store = use_store();
-    // Checked again whenever the server becomes reachable or unreachable.
-    let unreachable = use_memo(move || store.info().unreachable);
-    let health = use_resource(move || async move {
-        let _ = unreachable();
-        Client::new(api::BASE_URL, None).health().await
-    });
-    let version = match &*health.read() {
-        None => "…".to_owned(),
-        Some(Ok(h)) => format!("v{} ({})", h.version, h.build),
-        Some(Err(_)) => s::offline().to_owned(),
-    };
-    let session = auth.session();
-    let sign_out = move |_| sign_out(auth, store);
-    let busy = use_sign_out().busy();
     rsx! {
         header {
-            div { class: "brand",
-                h1 { "{s::APP_NAME}" }
-                span { class: "server", id: "server-version", title: api::BASE_URL, "{s::server()} {version}" }
-            }
-            if let Some(session) = session {
-                div { class: "who",
-                    sync::SyncIndicator {}
-                    span { id: "signed-in-as", title: "{s::signed_in_as()} {session.email}", "{session.email}" }
-                    button { class: "link", id: "sign-out", disabled: busy, onclick: sign_out,
-                        if busy { "{s::signing_out()}" } else { "{s::sign_out()}" }
-                    }
-                }
+            h1 { "{s::APP_NAME}" }
+            if auth.session().is_some() {
+                sync::SyncIndicator {}
             }
         }
     }
@@ -327,11 +306,18 @@ fn Header() -> Element {
 pub struct SignOut {
     prompt: Signal<Option<SignOutCheck>>,
     busy: Signal<bool>,
+    /// The root component's scope: sign-out work runs there, so it isn't cancelled
+    /// when the screen that started it goes away.
+    scope: ScopeId,
 }
 
 impl SignOut {
     pub fn busy(&self) -> bool {
         *self.busy.read()
+    }
+
+    fn spawn(&self, fut: impl Future<Output = ()> + 'static) {
+        dioxus::dioxus_core::Runtime::current().spawn(self.scope, fut);
     }
 }
 
@@ -342,16 +328,17 @@ pub fn use_sign_out() -> SignOut {
 /// Tries to push waiting changes first. Local data is cleared only if nothing is left
 /// waiting; otherwise the user is asked (see [`SignOutDialog`]).
 pub fn sign_out(auth: Auth, store: Store) {
+    let ctx = consume_context::<SignOut>();
     let SignOut {
         mut prompt,
         mut busy,
-    } = consume_context::<SignOut>();
+        ..
+    } = ctx;
     if *busy.peek() {
         return;
     }
     busy.set(true);
-    // Not tied to the screen that started it.
-    dioxus::dioxus_core::spawn_forever(async move {
+    ctx.spawn(async move {
         if store.pending_now() > 0 {
             let _ = store.sync(auth.client()).await;
         }
@@ -375,7 +362,8 @@ async fn end_session(auth: Auth) {
 #[component]
 fn SignOutDialog() -> Element {
     let auth = use_auth();
-    let SignOut { mut prompt, .. } = use_sign_out();
+    let ctx = use_sign_out();
+    let mut prompt = ctx.prompt;
     let Some(SignOutCheck::Confirm { waiting, offline }) = prompt() else {
         return rsx! {};
     };
@@ -405,7 +393,7 @@ fn SignOutDialog() -> Element {
                         id: "sign-out-discard",
                         onclick: move |_| {
                             prompt.set(None);
-                            dioxus::dioxus_core::spawn_forever(end_session(auth));
+                            ctx.spawn(end_session(auth));
                         },
                         "{s::sign_out_discard()}"
                     }

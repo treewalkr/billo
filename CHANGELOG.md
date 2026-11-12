@@ -4,7 +4,7 @@
 
 ### New
 
-- Sign in with your email on development servers, and sign out from the header.
+- Sign in with your email on development servers, and sign out under "More".
 - Add, edit and delete your accounts: cash, bank accounts, credit cards, cash cards and personal loans.
 - Set up each card your way: statement day, due date, weekend rule, minimum payment, interest rate, interest-free period, credit limit and rounding.
 - Set up a loan with its amount, rate, term, start and first payment dates, and the monthly installment if your contract states one.
@@ -15,3 +15,14 @@
 - "This month" now shows your real card statements (due date, balance, minimum due and whether it's paid) and your next loan payments, sorted by due date.
 - Billo works offline: everything you've entered stays on your device, new changes are saved straight away and sent to the server when you're back online. A small badge shows whether you're synced, offline or have changes waiting, and "Sync now" under "More" fetches changes made on your other devices.
 - Use Billo in Thai or English: pick your language under "More" or on the sign-in screen. Billo starts in Thai if your device is set to Thai, and in Thai shows dates in the Buddhist Era (e.g. 16 พ.ย. 2569).
+- Due dates set to move off weekends now also skip Thai bank holidays for 2026 and 2027, as announced by the Bank of Thailand. Add your own extra days off (such as a regional holiday) under "More".
+- Install Billo from your browser to your home screen or desktop, and open it even with no internet connection at all.
+- Messages from the server are shown in Thai or English in plain words, with the technical details one tap away.
+
+### Changed
+
+- The top bar now shows just Billo and your sync status, so it fits small phones. Your email, "Sign out" and the app and server versions are under "More".
+
+### Fixed
+
+- Signing out no longer throws away changes that haven't reached the server yet: Billo tells you how many are waiting and lets you stay signed in until they're sent.

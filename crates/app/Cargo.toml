@@ -16,6 +16,7 @@ mobile = ["dioxus/mobile"]
 billo-api = { path = "../api" }
 billo-domain = { path = "../domain" }
 dioxus = { version = "0.7.10" }
+futures-util = { version = "0.3.34", default-features = false, features = ["std", "async-await-macro"] }
 # Plain HTTP only for now (no TLS backend): the browser's fetch on wasm, hyper on native.
 reqwest = { version = "0.13", default-features = false, features = ["json"] }
 serde = { version = "1", features = ["derive"] }
@@ -24,12 +25,16 @@ time = { version = "0.3", default-features = false, features = ["macros"] }
 uuid = { version = "1", features = ["v7", "serde"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
+idb = "0.6.5"
 js-sys = "0.3"
 uuid = { version = "1", features = ["v7", "serde", "js"] }
+wasm-bindgen = "0.2.130"
+wasm-bindgen-futures = "0.4.80"
 web-sys = { version = "0.3", features = ["Window", "Storage", "Navigator"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 dirs = "6"
+rusqlite = { version = "0.39", features = ["bundled"] }
 sys-locale = "0.3"
 time = { version = "0.3", features = ["std", "local-offset", "macros"] }
 

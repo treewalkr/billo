@@ -8,6 +8,9 @@ mod convert;
 mod format;
 mod forms;
 mod input;
+// Wired into the screens in a later change.
+#[allow(dead_code, unused_imports)]
+mod local;
 mod overview;
 mod storage;
 mod strings;

@@ -246,6 +246,9 @@ pub fn App() -> Element {
     rsx! {
         document::Title { "{s::APP_NAME}" }
         document::Stylesheet { href: MAIN_CSS }
+        if cfg!(target_arch = "wasm32") {
+            WebHead {}
+        }
         // Keyed by language: switching re-creates everything below in the new language.
         for l in [lang] {
             div { key: "{l.code()}", class: "app", lang: l.code(),
@@ -264,6 +267,15 @@ pub fn App() -> Element {
             }
         }
     }
+}
+
+/// The web app's manifest and service worker (nothing on iOS / Android).
+#[component]
+fn WebHead() -> Element {
+    #[cfg(target_arch = "wasm32")]
+    return rsx! { crate::pwa::WebAppHead {} };
+    #[cfg(not(target_arch = "wasm32"))]
+    rsx! {}
 }
 
 #[component]

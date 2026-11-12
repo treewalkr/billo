@@ -10,6 +10,7 @@ mod forms;
 mod input;
 mod local;
 mod overview;
+mod pwa;
 mod storage;
 mod store;
 mod strings;

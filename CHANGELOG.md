@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v0.1.0 — 2026-11-12
+
 ### New
 
 - Sign in with your email on development servers, and sign out under "More".

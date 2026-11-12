@@ -1,0 +1,13 @@
+[package]
+name = "billo-domain"
+description = "Billo financial calculations: money, card cycles, installments, loans"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+
+[lints]
+workspace = true

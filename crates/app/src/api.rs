@@ -5,6 +5,7 @@
 
 use std::fmt;
 
+use billo_api::sync::{PullResponse, PushRequest, PushResponse};
 use billo_api::{
     AccountData, BudgetData, BudgetQuery, CategoryData, DevLoginRequest, ErrorBody, ErrorCode,
     HealthResponse, InstallmentPlanData, List, LoginResponse, MeResponse, Put, Record,
@@ -298,6 +299,21 @@ impl Client {
 
     pub async fn delete_budget(&self, id: Uuid) -> Result<(), ApiError> {
         self.delete("/budgets", id).await
+    }
+
+    /// `POST /sync/push`.
+    pub async fn sync_push(&self, req: &PushRequest) -> Result<PushResponse, ApiError> {
+        self.json(self.http.post(self.url("/sync/push")).json(req))
+            .await
+    }
+
+    /// `GET /sync/pull`.
+    pub async fn sync_pull(&self, since: i64, limit: u32) -> Result<PullResponse, ApiError> {
+        self.json(
+            self.http
+                .get(self.url(&format!("/sync/pull?since={since}&limit={limit}"))),
+        )
+        .await
     }
 }
 

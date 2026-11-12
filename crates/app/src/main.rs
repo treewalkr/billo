@@ -14,6 +14,8 @@ mod local;
 mod overview;
 mod storage;
 mod strings;
+#[allow(dead_code)]
+mod sync;
 mod ui;
 
 fn main() {

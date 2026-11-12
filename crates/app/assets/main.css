@@ -300,6 +300,7 @@ textarea {
   font: inherit;
   font-size: 16px;
   padding: 10px 12px;
+  min-height: 44px;
   border: 1px solid var(--control-line);
   border-radius: var(--radius-control);
   background: var(--surface);
@@ -307,13 +308,16 @@ textarea {
 }
 
 input[type="checkbox"] {
-  width: auto;
-  margin-right: 8px;
+  width: 20px;
+  height: 20px;
+  min-height: 0;
+  margin: 0 10px 0 0;
 }
 
 .check {
   display: flex;
   align-items: center;
+  min-height: 44px;
   margin: 12px 0 0;
   font-size: 15px;
 }
@@ -353,6 +357,7 @@ button {
   font-size: 15px;
   border: none;
   border-radius: var(--radius-control);
+  min-height: 44px;
   padding: 10px 16px;
   background: var(--accent);
   color: var(--on-accent);
@@ -374,10 +379,28 @@ button.danger {
   color: var(--danger);
 }
 
+/* Text buttons: a 44px tall target around the words. */
 button.link {
+  display: inline-flex;
+  align-items: center;
+  min-width: 44px;
   background: none;
   color: var(--accent);
-  padding: 4px 0;
+  padding: 0 4px;
+  margin: 0 -4px;
+}
+
+/* Inside a heading or a row, the target overhangs instead of pushing things apart. */
+.card-head h3 button.link,
+.budget-head button.link,
+.list button.link {
+  margin-block: -10px;
+}
+
+/* Short words at the end of a row: the extra width goes on the left. */
+.budget-head button.link,
+.list button.link {
+  justify-content: flex-end;
 }
 
 form > button[type="submit"],
@@ -562,6 +585,7 @@ nav.tabs button.active {
 }
 
 .month-nav button {
+  min-width: 44px;
   padding: 6px 14px;
 }
 
@@ -785,6 +809,7 @@ li.over .left {
 
 .error-details summary {
   cursor: pointer;
+  padding: 10px 0;
 }
 
 .error-details code {

@@ -286,6 +286,7 @@ version = "0.1.0"
 dependencies = [
  "serde",
  "serde_json",
+ "time",
  "uuid",
 ]
 
@@ -314,6 +315,7 @@ dependencies = [
  "axum",
  "base64 0.22.1",
  "billo-api",
+ "billo-domain",
  "dotenvy",
  "getrandom 0.3.4",
  "http-body-util",

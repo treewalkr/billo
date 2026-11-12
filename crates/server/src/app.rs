@@ -10,6 +10,9 @@ use tower_http::trace::TraceLayer;
 use crate::routes;
 
 use crate::error;
+use crate::resources::accounts::Accounts;
+use crate::resources::categories::Categories;
+use crate::routes::resources::routes as resource_routes;
 
 #[derive(Debug, Clone)]
 pub struct AppState {
@@ -32,7 +35,9 @@ pub fn router(state: AppState) -> Router {
     let mut api = Router::new()
         .route("/health", get(routes::health::health))
         .route("/auth/logout", post(routes::auth::logout))
-        .route("/me", get(routes::auth::me));
+        .route("/me", get(routes::auth::me))
+        .merge(resource_routes::<Accounts>("/accounts"))
+        .merge(resource_routes::<Categories>("/categories"));
     if state.dev_login {
         api = api.route("/auth/dev-login", post(routes::auth::dev_login));
     }

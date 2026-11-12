@@ -9,6 +9,7 @@ publish = false
 
 [dependencies]
 billo-api = { path = "../api" }
+billo-domain = { path = "../domain" }
 base64 = "0.22"
 getrandom = "0.3"
 serde = { version = "1", features = ["derive"] }

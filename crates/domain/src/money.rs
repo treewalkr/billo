@@ -14,6 +14,14 @@ pub enum Currency {
 }
 
 impl Currency {
+    /// Every supported currency.
+    pub const ALL: [Self; 4] = [Self::Thb, Self::Usd, Self::Eur, Self::Jpy];
+
+    /// Parses an ISO 4217 code (`"THB"`); `None` if unknown or not upper-case.
+    pub fn from_code(code: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|c| c.code() == code)
+    }
+
     /// ISO 4217 alphabetic code.
     pub const fn code(self) -> &'static str {
         match self {
@@ -150,6 +158,15 @@ impl fmt::Display for Money {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn currency_from_code_round_trips() {
+        for c in Currency::ALL {
+            assert_eq!(Currency::from_code(c.code()), Some(c));
+        }
+        assert_eq!(Currency::from_code("thb"), None);
+        assert_eq!(Currency::from_code("XXX"), None);
+    }
 
     const fn thb(minor: i64) -> Money {
         Money::new(minor, Currency::Thb)

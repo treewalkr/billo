@@ -43,7 +43,8 @@ pub fn router(state: AppState) -> Router {
         .merge(resource_routes::<Categories>("/categories"))
         .merge(resource_routes::<Transactions>("/transactions"))
         .merge(resource_routes::<InstallmentPlans>("/installment-plans"))
-        .merge(resource_routes::<Budgets>("/budgets"));
+        .merge(resource_routes::<Budgets>("/budgets"))
+        .merge(routes::sync::routes());
     if state.dev_login {
         api = api.route("/auth/dev-login", post(routes::auth::dev_login));
     }

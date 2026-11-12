@@ -21,7 +21,7 @@ fn decode_err(e: impl std::error::Error + Send + Sync + 'static) -> sqlx::Error 
 
 impl Resource for InstallmentPlans {
     const TABLE: &'static str = "installment_plans";
-    const ENTITY: &'static str = "installment_plan";
+    const ENTITY_KIND: billo_api::sync::Entity = billo_api::sync::Entity::InstallmentPlan;
     const COLUMNS: &'static [&'static str] = &[
         "card_account_id",
         "principal_minor",

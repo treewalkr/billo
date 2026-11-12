@@ -16,7 +16,7 @@ pub struct Accounts;
 
 impl Resource for Accounts {
     const TABLE: &'static str = "accounts";
-    const ENTITY: &'static str = "account";
+    const ENTITY_KIND: billo_api::sync::Entity = billo_api::sync::Entity::Account;
     const COLUMNS: &'static [&'static str] = &[
         "kind",
         "name",

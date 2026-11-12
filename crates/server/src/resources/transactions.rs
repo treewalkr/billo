@@ -15,7 +15,7 @@ pub struct Transactions;
 
 impl Resource for Transactions {
     const TABLE: &'static str = "transactions";
-    const ENTITY: &'static str = "transaction";
+    const ENTITY_KIND: billo_api::sync::Entity = billo_api::sync::Entity::Transaction;
     const COLUMNS: &'static [&'static str] = &[
         "account_id",
         "category_id",

@@ -25,6 +25,15 @@ impl ApiError {
         Self::Validation(message.into())
     }
 
+    /// The error as it appears in a response body.
+    pub fn detail(&self) -> ErrorDetail {
+        let (_, code, message) = self.parts();
+        ErrorDetail {
+            code,
+            message: message.to_owned(),
+        }
+    }
+
     fn parts(&self) -> (StatusCode, ErrorCode, &str) {
         match self {
             Self::NotFound => (StatusCode::NOT_FOUND, ErrorCode::NotFound, "not found"),

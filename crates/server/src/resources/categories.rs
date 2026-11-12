@@ -15,7 +15,7 @@ pub struct Categories;
 
 impl Resource for Categories {
     const TABLE: &'static str = "categories";
-    const ENTITY: &'static str = "category";
+    const ENTITY_KIND: billo_api::sync::Entity = billo_api::sync::Entity::Category;
     const COLUMNS: &'static [&'static str] = &["parent_id", "name_th", "name_en", "kind"];
 
     type Data = CategoryData;

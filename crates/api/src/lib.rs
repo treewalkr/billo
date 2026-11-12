@@ -9,6 +9,7 @@ pub mod error;
 pub mod records;
 pub mod resources;
 pub mod rules;
+pub mod sync;
 
 pub use auth::{DevLoginRequest, LoginResponse, MeResponse};
 pub use error::{ErrorBody, ErrorCode, ErrorDetail};

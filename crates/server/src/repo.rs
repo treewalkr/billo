@@ -4,6 +4,7 @@
 
 use std::future::Future;
 
+use billo_api::sync::{Entity, EntityState};
 use billo_api::{Put, Record};
 use serde::Serialize;
 use serde::de::DeserializeOwned;
@@ -22,8 +23,8 @@ use crate::error::{ApiError, ApiResult};
 pub trait Resource: Send + Sync + 'static {
     /// Table name.
     const TABLE: &'static str;
-    /// Name in `change_log.entity`.
-    const ENTITY: &'static str;
+    /// The record type; its name goes in `change_log.entity`.
+    const ENTITY_KIND: Entity;
     /// Data columns (everything but `id`, `user_id` and the metadata), in the order
     /// [`Resource::bind`] binds them.
     const COLUMNS: &'static [&'static str];
@@ -132,7 +133,18 @@ pub async fn put<R: Resource>(
     put: Put<R::Data>,
 ) -> ApiResult<PutOutcome<R::Data>> {
     let mut tx = db.begin().await?;
+    let out = put_in::<R>(&mut tx, user_id, id, put).await?;
+    tx.commit().await?;
+    Ok(out)
+}
 
+/// [`put`] inside the caller's transaction (which the caller commits).
+pub async fn put_in<R: Resource>(
+    tx: &mut PgConnection,
+    user_id: Uuid,
+    id: Uuid,
+    put: Put<R::Data>,
+) -> ApiResult<PutOutcome<R::Data>> {
     let sql = format!(
         "SELECT id, user_id, deleted_at IS NOT NULL AS deleted, version, created_at, updated_at, {} \
          FROM {} WHERE id = $1 FOR UPDATE",
@@ -155,7 +167,7 @@ pub async fn put<R: Resource>(
         }
     };
 
-    let data = R::validate(&mut tx, user_id, put.data).await?;
+    let data = R::validate(tx, user_id, put.data).await?;
 
     if let Some((record, false)) = &existing
         && record.data == data
@@ -193,14 +205,13 @@ pub async fn put<R: Resource>(
     let record = record_from_row::<R>(&row)?;
     let created = record.version == 1;
     log_change::<R>(
-        &mut tx,
+        tx,
         user_id,
         id,
         record.version,
         if created { "create" } else { "update" },
     )
     .await?;
-    tx.commit().await?;
     Ok(PutOutcome {
         record,
         created,
@@ -212,18 +223,29 @@ pub async fn put<R: Resource>(
 /// record is a no-op, so retries are safe.
 pub async fn delete<R: Resource>(db: &PgPool, user_id: Uuid, id: Uuid) -> ApiResult<()> {
     let mut tx = db.begin().await?;
+    delete_in::<R>(&mut tx, user_id, id).await?;
+    tx.commit().await?;
+    Ok(())
+}
+
+/// [`delete`] inside the caller's transaction; returns the record's version after it.
+pub async fn delete_in<R: Resource>(
+    tx: &mut PgConnection,
+    user_id: Uuid,
+    id: Uuid,
+) -> ApiResult<i64> {
     let sql = format!(
-        "SELECT deleted_at IS NOT NULL FROM {} WHERE id = $1 AND user_id = $2 FOR UPDATE",
+        "SELECT deleted_at IS NOT NULL, version FROM {} WHERE id = $1 AND user_id = $2 FOR UPDATE",
         R::TABLE
     );
-    let (deleted,): (bool,) = sqlx::query_as(AssertSqlSafe(sql))
+    let (deleted, version): (bool, i64) = sqlx::query_as(AssertSqlSafe(sql))
         .bind(id)
         .bind(user_id)
         .fetch_optional(&mut *tx)
         .await?
         .ok_or(ApiError::NotFound)?;
     if deleted {
-        return Ok(());
+        return Ok(version);
     }
     let sql = format!(
         "UPDATE {} SET deleted_at = now(), updated_at = now(), version = version + 1 \
@@ -235,9 +257,52 @@ pub async fn delete<R: Resource>(db: &PgPool, user_id: Uuid, id: Uuid) -> ApiRes
         .bind(user_id)
         .fetch_one(&mut *tx)
         .await?;
-    log_change::<R>(&mut tx, user_id, id, version, "delete").await?;
-    tx.commit().await?;
-    Ok(())
+    log_change::<R>(tx, user_id, id, version, "delete").await?;
+    Ok(version)
+}
+
+/// The current state of records `ids` of `user_id`, deleted ones as tombstones. Ids the
+/// user doesn't own are left out.
+pub async fn states<R: Resource>(
+    conn: &mut PgConnection,
+    user_id: Uuid,
+    ids: &[Uuid],
+) -> ApiResult<Vec<EntityState>> {
+    let sql = format!(
+        "SELECT id, deleted_at IS NOT NULL AS deleted, version, created_at, updated_at, {} \
+         FROM {} WHERE user_id = $1 AND id = ANY($2)",
+        R::COLUMNS.join(", "),
+        R::TABLE
+    );
+    let rows = sqlx::query(AssertSqlSafe(sql))
+        .bind(user_id)
+        .bind(ids)
+        .fetch_all(conn)
+        .await?;
+    rows.iter()
+        .map(|row| {
+            let deleted: bool = row.try_get("deleted")?;
+            let id: Uuid = row.try_get("id")?;
+            let version: i64 = row.try_get("version")?;
+            let record = if deleted {
+                None
+            } else {
+                Some(record_json(&record_from_row::<R>(row)?))
+            };
+            Ok(EntityState {
+                entity: R::ENTITY_KIND,
+                id,
+                version,
+                deleted,
+                record,
+            })
+        })
+        .collect()
+}
+
+/// A record as the JSON object the API returns.
+pub fn record_json<D: Serialize>(record: &Record<D>) -> serde_json::Value {
+    serde_json::to_value(record).unwrap_or(serde_json::Value::Null)
 }
 
 fn id_taken() -> ApiError {
@@ -256,7 +321,7 @@ async fn log_change<R: Resource>(
          VALUES ($1, $2, $3, $4, $5)",
     )
     .bind(user_id)
-    .bind(R::ENTITY)
+    .bind(R::ENTITY_KIND.as_str())
     .bind(entity_id)
     .bind(version)
     .bind(op)

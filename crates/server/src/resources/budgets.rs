@@ -15,7 +15,7 @@ pub struct Budgets;
 
 impl Resource for Budgets {
     const TABLE: &'static str = "budgets";
-    const ENTITY: &'static str = "budget";
+    const ENTITY_KIND: billo_api::sync::Entity = billo_api::sync::Entity::Budget;
     const COLUMNS: &'static [&'static str] =
         &["category_id", "period_month", "limit_minor", "currency"];
     const ORDER_BY: &'static str = "period_month DESC, id";

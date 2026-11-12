@@ -12,6 +12,7 @@ use crate::strings as s;
 
 mod account_form;
 mod accounts;
+mod budgets;
 mod categories;
 mod fields;
 mod home;
@@ -86,6 +87,7 @@ pub enum Screen {
         Box<Record<AccountData>>,
         Option<Box<Record<InstallmentPlanData>>>,
     ),
+    Budgets,
     More,
     Categories,
     /// Add (`None`) or edit a category.
@@ -109,6 +111,7 @@ impl Screen {
                 Some(p) => format!("plan-{}-{}", p.id, p.version),
                 None => format!("new-plan-{}", a.id),
             },
+            Self::Budgets => "budgets".into(),
             Self::More => "more".into(),
             Self::Categories => "categories".into(),
             Self::CategoryForm(c) => match c {
@@ -121,6 +124,7 @@ impl Screen {
     fn tab(&self) -> Tab {
         match self {
             Self::Home => Tab::Home,
+            Self::Budgets => Tab::Budgets,
             Self::More | Self::Categories | Self::CategoryForm(_) => Tab::More,
             _ => Tab::Accounts,
         }
@@ -131,6 +135,7 @@ impl Screen {
 enum Tab {
     Home,
     Accounts,
+    Budgets,
     More,
 }
 
@@ -185,6 +190,7 @@ fn Screens() -> Element {
         Screen::PlanForm(a, p) => rsx! {
             plans::PlanForm { account: *a, existing: p.map(|p| *p) }
         },
+        Screen::Budgets => rsx! { budgets::Budgets {} },
         Screen::More => rsx! { more::More {} },
         Screen::Categories => rsx! { categories::Categories {} },
         Screen::CategoryForm(c) => rsx! { categories::CategoryForm { existing: c.map(|c| *c) } },
@@ -203,6 +209,12 @@ fn Screens() -> Element {
                 class: if tab == Tab::Accounts { "active" } else { "" },
                 onclick: move |_| nav.set(Screen::Accounts),
                 "{s::ACCOUNTS}"
+            }
+            button {
+                id: "tab-budgets",
+                class: if tab == Tab::Budgets { "active" } else { "" },
+                onclick: move |_| nav.set(Screen::Budgets),
+                "{s::BUDGETS}"
             }
             button {
                 id: "tab-more",

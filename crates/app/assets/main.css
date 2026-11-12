@@ -395,3 +395,74 @@ nav.tabs button.active {
   margin: 0;
   font-size: 16px;
 }
+
+/* Budgets */
+
+.month-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.month-nav span {
+  font-weight: 600;
+}
+
+.month-nav button {
+  padding: 6px 14px;
+}
+
+.row.over dd {
+  color: var(--danger);
+}
+
+.list.budgets li {
+  display: block;
+}
+
+.list.budgets li.child {
+  padding-left: 20px;
+}
+
+.budget-head,
+.figures {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.figures {
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+.bar {
+  height: 8px;
+  border-radius: 999px;
+  background: #eef0f3;
+  overflow: hidden;
+  margin-top: 8px;
+}
+
+.bar .fill {
+  height: 100%;
+  background: var(--accent);
+}
+
+li.over .bar .fill {
+  background: var(--danger);
+}
+
+li.over .left {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.limit-form .actions button {
+  flex: 1;
+}

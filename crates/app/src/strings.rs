@@ -303,3 +303,35 @@ pub const fn category_kind_label(k: CategoryKind) -> &'static str {
         CategoryKind::Income => INCOME,
     }
 }
+
+// Budgets
+pub const BUDGETS: &str = "Budgets";
+pub const PREVIOUS_MONTH: &str = "Previous month";
+pub const NEXT_MONTH: &str = "Next month";
+pub const BUDGETED: &str = "Budgeted";
+pub const SPENT: &str = "Spent";
+pub const LEFT: &str = "Left";
+pub const OVER_BUDGET: &str = "Over budget";
+pub const UNBUDGETED: &str = "Spending without a budget";
+pub const SET_LIMIT: &str = "Set limit";
+pub const MONTHLY_LIMIT: &str = "Limit for this month";
+pub const REMOVE_LIMIT: &str = "Remove limit";
+pub const CANCEL: &str = "Cancel";
+pub const NOT_BUDGETED: &str = "No limit yet";
+pub const BUDGETS_NEED_CATEGORIES: &str =
+    "Add spending categories first, then set a limit for each.";
+pub const BUDGETS_NOTE: &str =
+    "Purchases and fees count as spending; refunds reduce it. Amounts in baht only.";
+pub const CANT_WORK_OUT_BUDGET: &str = "Can't work out this month's budget";
+
+pub fn spent_of(spent: &str, limit: &str) -> String {
+    format!("{spent} of {limit}")
+}
+
+pub fn left_amount(amount: &str) -> String {
+    format!("{amount} left")
+}
+
+pub fn over_by(amount: &str) -> String {
+    format!("{amount} over")
+}

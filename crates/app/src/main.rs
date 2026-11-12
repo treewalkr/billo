@@ -1,6 +1,7 @@
 //! Billo app: one Dioxus codebase for web, iOS and Android.
 
 mod api;
+mod budgets;
 mod categories;
 mod clock;
 mod convert;

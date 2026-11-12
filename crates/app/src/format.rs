@@ -67,6 +67,16 @@ pub fn date(d: Date) -> String {
     format!("{} {} {}", d.day(), &month[..3], d.year())
 }
 
+/// `November 2026`.
+pub fn month_year(year: i32, month: time::Month) -> String {
+    format!("{month} {year}")
+}
+
+/// Basis points as a whole percentage, rounded down: `6_666` → `"66%"`.
+pub fn whole_percent(bp: u32) -> String {
+    format!("{}%", bp / 100)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

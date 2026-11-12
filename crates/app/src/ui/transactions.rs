@@ -176,7 +176,7 @@ pub fn TransactionForm(
         };
         error.set(None);
         busy.set(true);
-        let cat_kind = category_kind(d.kind);
+        let cat_kind = category_kind(kind, d.kind);
         spawn(async move {
             let result = auth
                 .call(|c| async move {
@@ -221,7 +221,7 @@ pub fn TransactionForm(
         .iter()
         .map(|k| (key(k), s::transaction_kind_label(kind, *k).to_owned()))
         .collect();
-    let want = category_kind(d.kind);
+    let want = category_kind(kind, d.kind);
     let mut cat_options = vec![(String::new(), s::NO_CATEGORY.to_owned())];
     let cat_error = match &*categories.read() {
         Some(Ok(list)) => {

@@ -284,10 +284,11 @@ pub fn transaction_kinds(account: AccountKind) -> &'static [TransactionKind] {
     }
 }
 
-/// Category kind matching a transaction kind (income vs. spending).
-pub fn category_kind(kind: TransactionKind) -> CategoryKind {
+/// Category kind matching a transaction kind (income vs. spending). A refund on a
+/// card goes back to a spending category, so it reduces that category's spending.
+pub fn category_kind(account: AccountKind, kind: TransactionKind) -> CategoryKind {
     match kind {
-        TransactionKind::Income => CategoryKind::Income,
+        TransactionKind::Income if !is_card_like(account) => CategoryKind::Income,
         _ => CategoryKind::Expense,
     }
 }
@@ -736,5 +737,14 @@ mod tests {
         assert_eq!(f.to_data().unwrap().parent_id, Some(Uuid::nil()));
         f.parent = "bad".into();
         assert!(f.to_data().is_err());
+    }
+
+    #[test]
+    fn card_refunds_use_spending_categories() {
+        use CategoryKind::{Expense, Income};
+        let k = |a, t| category_kind(a, t);
+        assert_eq!(k(AccountKind::Bank, TransactionKind::Income), Income);
+        assert_eq!(k(AccountKind::Card, TransactionKind::Income), Expense);
+        assert_eq!(k(AccountKind::Cash, TransactionKind::Expense), Expense);
     }
 }

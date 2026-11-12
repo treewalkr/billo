@@ -12,6 +12,17 @@ body {
   margin: 0;
 }
 
+/* Hide scrollbars (like a native app); scrolling still works. */
+html,
+body,
+* {
+  scrollbar-width: none;
+}
+
+::-webkit-scrollbar {
+  display: none;
+}
+
 header {
   display: flex;
   align-items: center;

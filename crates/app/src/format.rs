@@ -40,6 +40,20 @@ pub fn money(m: Money) -> String {
     }
 }
 
+/// An amount with its direction spelled out, for lists that mix both: `+฿2,000.00` for
+/// money in (or debt paid off), `−฿150.00` (a true minus sign) for money out. Zero has
+/// no sign.
+pub fn signed_money(m: Money, credit: bool) -> String {
+    let abs = money(Money::new(m.minor().saturating_abs(), m.currency()));
+    if m.minor() == 0 {
+        abs
+    } else if credit {
+        format!("+{abs}")
+    } else {
+        format!("\u{2212}{abs}")
+    }
+}
+
 /// A scaled integer as plain digits for editing: `plain(123456, 2) == "1234.56"`.
 pub fn plain(value: i64, scale: u32) -> String {
     if scale == 0 {
@@ -148,6 +162,16 @@ mod tests {
 
     fn thb(minor: i64) -> String {
         money(Money::new(minor, Currency::Thb))
+    }
+
+    #[test]
+    fn signed_money_shows_the_direction() {
+        let m = |minor| Money::new(minor, Currency::Thb);
+        assert_eq!(signed_money(m(200_000), true), "+฿2,000.00");
+        assert_eq!(signed_money(m(15_000), false), "\u{2212}฿150.00");
+        // A negative interest adjustment is a credit: the sign comes from `credit`.
+        assert_eq!(signed_money(m(-1_250), true), "+฿12.50");
+        assert_eq!(signed_money(m(0), false), "฿0.00");
     }
 
     #[test]

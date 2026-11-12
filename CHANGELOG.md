@@ -10,6 +10,7 @@
 ### Fixed
 
 - Lists of accounts, transactions, installment plans and categories now work with a keyboard and screen readers, and the control you're on is clearly outlined.
+- Transaction amounts now show + for money in and − for money out, not just a colour.
 - Buttons, links and fields are easier to tap: all at least 44 points tall.
 - The bottom tabs no longer sit under the iPhone home indicator, and on wide screens they stay as wide as the page.
 

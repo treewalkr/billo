@@ -11,3 +11,7 @@ pub mod calendar;
 pub use calendar::{BusinessCalendar, EveryDay, WeekendCalendar};
 
 pub mod card;
+
+pub mod rounding;
+
+pub use rounding::{Rounding, RoundingMode};

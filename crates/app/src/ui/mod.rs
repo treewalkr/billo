@@ -263,12 +263,13 @@ pub fn App() -> Element {
     rsx! {
         document::Title { "{s::APP_NAME}" }
         document::Stylesheet { href: MAIN_CSS }
+        crate::theme::Fonts {}
         if cfg!(target_arch = "wasm32") {
             WebHead {}
         }
         // Keyed by language: switching re-creates everything below in the new language.
         for l in [lang] {
-            div { key: "{l.code()}", class: "app", lang: l.code(),
+            div { key: "{l.code()}", class: "app", lang: l.code(), "data-theme": "calm",
                 Header {}
                 main {
                     if signed_in && !ready {

@@ -15,6 +15,7 @@ mod storage;
 mod store;
 mod strings;
 mod sync;
+mod theme;
 mod ui;
 mod web_login;
 

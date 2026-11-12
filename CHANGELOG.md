@@ -6,6 +6,10 @@
 
 - Sign in with your Google account on the web.
 
+### Changed
+
+- A quieter, easier-to-read look: a bank-statement style with the IBM Plex Sans Thai typeface, and larger status labels.
+
 ## v0.1.0 — 2026-11-12
 
 ### New

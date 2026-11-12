@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### New
+
+- Sign in with your Google account on the web.
+
 ## v0.1.0 — 2026-11-12
 
 ### New

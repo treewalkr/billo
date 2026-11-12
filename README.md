@@ -66,6 +66,18 @@ cp .env.example .env                      # optional, for `cargo run -p billo-se
 DATABASE_URL=postgres://billo:billo@localhost:5432/billo cargo test
 ```
 
+### Demo data
+
+`scripts/seed_demo.py` (Python 3, no dependencies) fills one account with realistic Thai data for Sept–Nov 2026: the starter categories, a bank account and wallet, two credit cards with installment plans, a cash card, two loans, ~130 transactions and budgets for October and November. Re-running it updates the same records instead of adding new ones.
+
+```bash
+python3 scripts/seed_demo.py                    # dev login as demo@billo.dev, then sign in with that email
+python3 scripts/seed_demo.py --email me@x.com   # another dev-login email
+python3 scripts/seed_demo.py --token <token>    # an existing session, e.g. a Google sign-in
+```
+
+For `--token`, copy the session from the signed-in web app: DevTools → Application → Local Storage → `billo.session` (pass its `token` field, or the whole value in single quotes). `--api` sets the server (default `http://localhost:8080`).
+
 ## Docs
 
 - [PRODUCT.md](PRODUCT.md): what we're building and why

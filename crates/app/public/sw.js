@@ -19,6 +19,10 @@ const PREFIX = "billo-shell-";
 const CACHE = PREFIX + VERSION;
 const SHELL = ["/", "/manifest.webmanifest", "/icon-192.png", "/icon-512.png"];
 const HASHED = /-dxh[0-9a-f]+\./;
+// Dev servers answer with `Vary: Origin`; module scripts send an Origin header and the
+// copies cached from the page's list don't, so match without it (same-origin files
+// don't really vary).
+const MATCH = { ignoreVary: true };
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -62,7 +66,7 @@ self.addEventListener("message", (event) => {
     caches.open(CACHE).then((cache) =>
       Promise.all(
         urls.map((u) =>
-          cache.match(u).then((hit) => hit || cache.add(u).catch(() => undefined)),
+          cache.match(u, MATCH).then((hit) => hit || cache.add(u).catch(() => undefined)),
         ),
       ),
     ),
@@ -78,7 +82,7 @@ async function networkFirst(request, fallback) {
     }
     return response;
   } catch (err) {
-    const hit = await cache.match(fallback || request, { ignoreSearch: !!fallback });
+    const hit = await cache.match(fallback || request, { ...MATCH, ignoreSearch: !!fallback });
     if (hit) {
       return hit;
     }
@@ -88,7 +92,7 @@ async function networkFirst(request, fallback) {
 
 async function cacheFirst(request) {
   const cache = await caches.open(CACHE);
-  const hit = await cache.match(request);
+  const hit = await cache.match(request, MATCH);
   if (hit) {
     return hit;
   }

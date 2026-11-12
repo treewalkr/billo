@@ -1,0 +1,63 @@
+//! Development sign-in: email only, via `POST /auth/dev-login`.
+
+use dioxus::prelude::*;
+
+use super::{ErrorBox, use_auth};
+use crate::api::ApiError;
+use crate::storage::Session;
+use crate::strings as s;
+
+#[component]
+pub fn SignIn() -> Element {
+    let auth = use_auth();
+    let mut email = use_signal(String::new);
+    let mut busy = use_signal(|| false);
+    let mut error = use_signal(|| None::<String>);
+
+    let submit = move |e: FormEvent| {
+        e.prevent_default();
+        let address = email.read().trim().to_owned();
+        if address.is_empty() {
+            error.set(Some(s::EMAIL_REQUIRED.to_owned()));
+            return;
+        }
+        busy.set(true);
+        error.set(None);
+        spawn(async move {
+            match auth.client().dev_login(&address).await {
+                Ok(login) => auth.sign_in(Session {
+                    token: login.token,
+                    user_id: login.user_id,
+                    email: address.to_lowercase(),
+                }),
+                Err(ApiError::NotFound) => error.set(Some(s::DEV_LOGIN_OFF.to_owned())),
+                Err(e) => error.set(Some(e.to_string())),
+            }
+            busy.set(false);
+        });
+    };
+
+    rsx! {
+        section { class: "card signin",
+            h2 { "{s::SIGN_IN}" }
+            p { class: "note", "{s::DEV_SIGN_IN_NOTE}" }
+            form { onsubmit: submit,
+                label { r#for: "email", "{s::EMAIL}" }
+                input {
+                    id: "email",
+                    r#type: "email",
+                    autocomplete: "email",
+                    placeholder: s::EMAIL_PLACEHOLDER,
+                    value: "{email}",
+                    oninput: move |e| email.set(e.value()),
+                }
+                if let Some(msg) = error() {
+                    ErrorBox { message: msg }
+                }
+                button { r#type: "submit", id: "sign-in", disabled: busy(),
+                    if busy() { "{s::SIGNING_IN}" } else { "{s::SIGN_IN}" }
+                }
+            }
+        }
+    }
+}

@@ -2,36 +2,13 @@
 
 use dioxus::prelude::*;
 
-use crate::{api, demo, format};
-
-const MAIN_CSS: Asset = asset!("/assets/main.css");
+use crate::{demo, format};
 
 #[component]
-pub fn App() -> Element {
+pub fn Home() -> Element {
     rsx! {
-        document::Title { "Billo" }
-        document::Stylesheet { href: MAIN_CSS }
-        Header {}
-        main {
-            h2 { "This month" }
-            DemoCard {}
-        }
-    }
-}
-
-#[component]
-fn Header() -> Element {
-    let health = use_resource(api::health);
-    let version = match &*health.read() {
-        None => "…".to_owned(),
-        Some(Ok(h)) => format!("v{} ({})", h.version, h.build),
-        Some(Err(_)) => "offline".to_owned(),
-    };
-    rsx! {
-        header {
-            h1 { "Billo" }
-            span { class: "server", id: "server-version", title: api::BASE_URL, "server {version}" }
-        }
+        h2 { "This month" }
+        DemoCard {}
     }
 }
 

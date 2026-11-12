@@ -14,30 +14,11 @@ use std::fmt;
 
 use time::{Date, Duration};
 
+use crate::daycount::DENOMINATOR;
+pub use crate::daycount::DayCount;
+
 use crate::money::{Currency, Money, MoneyError};
 use crate::rounding::Rounding;
-
-/// How many days make a year when turning an annual rate into a daily one.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum DayCount {
-    /// Always 365.
-    #[default]
-    Actual365,
-    /// 366 for days in a leap year, 365 otherwise.
-    ActualActual,
-    /// Always 360.
-    Actual360,
-}
-
-impl DayCount {
-    fn days_in_year(self, date: Date) -> i128 {
-        match self {
-            Self::Actual365 => 365,
-            Self::Actual360 => 360,
-            Self::ActualActual => i128::from(time::util::days_in_year(date.year())),
-        }
-    }
-}
 
 /// Which date a charge starts accruing interest from.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -166,8 +147,6 @@ impl InterestRules {
         dated.sort_by_key(|(d, _)| *d);
 
         let first = dated.first().map_or(from, |(d, _)| (*d).min(from));
-        // Sum of balance × rate_bp × (LCM / year_days); divide by 10_000 × LCM once.
-        const LCM: i128 = 1_603_080; // lcm(360, 365, 366)
         let mut numerator: i128 = 0;
         let mut balance: i128 = 0;
         let mut next = 0;
@@ -181,8 +160,9 @@ impl InterestRules {
                 next += 1;
             }
             if balance > 0 {
-                let weight = LCM / self.day_count.days_in_year(day);
-                numerator += balance * i128::from(self.annual_rate_bp) * weight;
+                numerator += self
+                    .day_count
+                    .day_numerator(balance, self.annual_rate_bp, day);
             }
             if day == to {
                 break;
@@ -192,7 +172,7 @@ impl InterestRules {
 
         let minor = self
             .rounding
-            .apply(numerator, 10_000 * LCM)
+            .apply(numerator, DENOMINATOR)
             .ok_or(MoneyError::Overflow)?;
         Ok(Money::new(minor, currency))
     }

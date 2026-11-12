@@ -18,6 +18,7 @@ pub const MAX_PULL_LIMIT: u32 = 1000;
 
 /// The synced record types. The names match `change_log.entity`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum Entity {
     Account,
@@ -52,6 +53,7 @@ impl Entity {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum MutationOp {
     /// Create or update with `payload`.
@@ -62,6 +64,7 @@ pub enum MutationOp {
 
 /// One queued change.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Mutation {
     /// Idempotency key: a mutation is applied at most once per user.
     pub mutation_id: Uuid,
@@ -78,18 +81,21 @@ pub struct Mutation {
 
 /// Body of `POST /api/v1/sync/push`.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct PushRequest {
     pub mutations: Vec<Mutation>,
 }
 
 /// Body of the push response: one result per mutation, in request order.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct PushResponse {
     pub results: Vec<MutationResult>,
 }
 
 /// The current server state of one record.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct EntityState {
     pub entity: Entity,
     pub id: Uuid,
@@ -102,6 +108,7 @@ pub struct EntityState {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct MutationResult {
     pub mutation_id: Uuid,
     /// Applied (now, or earlier with the same `mutation_id`).
@@ -123,6 +130,7 @@ pub struct MutationResult {
 
 /// Query of `GET /api/v1/sync/pull`.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct PullQuery {
     /// Last `seq` the client has applied; 0 for everything.
     #[serde(default)]
@@ -133,6 +141,7 @@ pub struct PullQuery {
 
 /// One changed record in a pull page.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Change {
     /// The feed position of the record's latest change in this page.
     pub seq: i64,
@@ -142,6 +151,7 @@ pub struct Change {
 
 /// Body of `GET /api/v1/sync/pull`: changes ordered by `seq`, each record at most once.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct PullResponse {
     pub changes: Vec<Change>,
     /// Pass as `since` for the next page (unchanged when there were no changes).

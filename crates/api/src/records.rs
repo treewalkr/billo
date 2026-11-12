@@ -14,6 +14,7 @@ pub const CONFLICT_HEADER: &str = "x-billo-conflict";
 
 /// An amount in integer minor units (satang for THB) and an ISO 4217 code.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Money {
     pub minor: i64,
     pub currency: String,
@@ -30,13 +31,23 @@ impl Money {
 
 /// A stored resource: metadata plus the resource's fields (flattened).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "schema", schemars(rename = "{D}Record"))]
 pub struct Record<D> {
     pub id: Uuid,
     /// Starts at 1 and goes up on every write, including deletes.
     pub version: i64,
     #[serde(with = "time::serde::rfc3339")]
+    #[cfg_attr(
+        feature = "schema",
+        schemars(with = "String", extend("format" = "date-time"))
+    )]
     pub created_at: OffsetDateTime,
     #[serde(with = "time::serde::rfc3339")]
+    #[cfg_attr(
+        feature = "schema",
+        schemars(with = "String", extend("format" = "date-time"))
+    )]
     pub updated_at: OffsetDateTime,
     #[serde(flatten)]
     pub data: D,
@@ -44,6 +55,8 @@ pub struct Record<D> {
 
 /// Body of `PUT /api/v1/<resource>/{id}`: create, or update the record with this id.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "schema", schemars(rename = "{D}Put"))]
 pub struct Put<D> {
     /// The version the client last saw; omit when creating.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -55,6 +68,8 @@ pub struct Put<D> {
 /// Body of `GET /api/v1/<resource>`. An object (not a bare array) so paging can be
 /// added later without breaking clients.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "schema", schemars(rename = "{D}List"))]
 pub struct List<D> {
     pub items: Vec<Record<D>>,
 }

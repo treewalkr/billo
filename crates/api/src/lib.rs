@@ -22,6 +22,7 @@ pub use rules::AccountRules;
 
 /// Body of `GET /api/v1/health`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct HealthResponse {
     /// `"ok"`, or `"degraded"` when a dependency (e.g. the database) is down.
     pub status: String,
@@ -95,5 +96,18 @@ mod tests {
         let json = serde_json::to_string(&h).unwrap();
         assert_eq!(json, r#"{"status":"ok","version":"0.1.0","build":1}"#);
         assert_eq!(serde_json::from_str::<HealthResponse>(&json).unwrap(), h);
+    }
+
+    #[cfg(feature = "schema")]
+    #[test]
+    fn record_schema_formats_dates() {
+        let schema = serde_json::to_value(schemars::schema_for!(Record<AccountData>)).unwrap();
+        assert_eq!(schema["title"], "AccountDataRecord");
+        let props = &schema["properties"];
+        assert_eq!(props["created_at"]["format"], "date-time");
+        assert_eq!(props["updated_at"]["format"], "date-time");
+        assert_eq!(props["opened_on"]["format"], "date");
+        // Flattened: the account's fields sit beside the metadata.
+        assert!(props["kind"].is_object());
     }
 }

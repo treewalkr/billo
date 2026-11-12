@@ -13,6 +13,11 @@ serde_json = "1"
 uuid = { version = "1", default-features = false, features = ["serde"] }
 # Dates as "YYYY-MM-DD", timestamps as RFC 3339.
 time = { version = "0.3", default-features = false, features = ["serde-human-readable", "serde-well-known"] }
+# JSON Schemas for the server's OpenAPI docs; the app leaves this off.
+schemars = { version = "1", optional = true, features = ["uuid1"] }
+
+[features]
+schema = ["dep:schemars"]
 
 [dev-dependencies]
 time = { version = "0.3", features = ["macros"] }

@@ -5,6 +5,7 @@ use uuid::Uuid;
 
 /// Body of `POST /api/v1/auth/dev-login` (development servers only).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct DevLoginRequest {
     pub email: String,
     /// Shown in a future "signed-in devices" list, e.g. `"iPhone"`.
@@ -14,6 +15,7 @@ pub struct DevLoginRequest {
 
 /// A new session. Send `token` as `Authorization: Bearer <token>`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct LoginResponse {
     pub token: String,
     pub user_id: Uuid,
@@ -24,6 +26,7 @@ pub struct LoginResponse {
 
 /// Body of `POST /api/v1/auth/google`: an ID token from the platform's Google sign-in.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct GoogleLoginRequest {
     pub id_token: String,
     /// Checked against the token's `nonce` claim when given.
@@ -35,6 +38,7 @@ pub struct GoogleLoginRequest {
 
 /// Body of `GET /api/v1/auth/methods`: which ways of signing in this server offers.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct AuthMethods {
     /// Google sign-in (web flow and `POST /auth/google`).
     #[serde(default)]
@@ -46,6 +50,7 @@ pub struct AuthMethods {
 
 /// Body of `GET /api/v1/me`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct MeResponse {
     pub user_id: Uuid,
 }

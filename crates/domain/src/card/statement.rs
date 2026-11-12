@@ -365,6 +365,40 @@ mod tests {
     }
 
     #[test]
+    fn installment_portion_is_due_in_full() {
+        use crate::card::installment::{InstallmentPlan, Remainder};
+        // ฿12,000 over 10 months posting on the 5th, plus a ฿20,000 purchase.
+        let plan = InstallmentPlan::new(
+            thb(12_000),
+            10,
+            0,
+            date!(2026 - 11 - 05),
+            Rounding::default(),
+            Remainder::Last,
+        )
+        .unwrap();
+        let rules = card(true);
+        let period = rules
+            .cycle
+            .period_for_month(2026, Month::November, &EveryDay);
+        let mut entries = plan.entries();
+        entries.push(charge(date!(2026 - 11 - 01), date!(2026 - 11 - 02), 20_000));
+        let s = rules
+            .statement(
+                2026,
+                Month::November,
+                None,
+                &entries,
+                plan.due_in_period(&period),
+                &EveryDay,
+            )
+            .unwrap();
+        assert_eq!(s.closing_balance, thb(21_200));
+        // 8% of the ฿20,000 revolving part = ฿1,600, plus the ฿1,200 portion in full
+        assert_eq!(s.minimum_due, thb(2_800));
+    }
+
+    #[test]
     fn chains_into_the_next_month() {
         let cal = EveryDay;
         let rules = card(true);

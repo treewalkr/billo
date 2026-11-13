@@ -198,14 +198,32 @@ pub fn router_and_docs(state: AppState) -> (Router, OpenApi) {
     (router, docs)
 }
 
+/// Scalar API reference page. Our own template (aide's hardcodes its theme), with
+/// Scalar loaded from jsDelivr at a pinned version.
+const DOCS_PAGE: &str = r#"<!doctype html>
+<html>
+  <head>
+    <title>Billo API</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+  </head>
+  <body>
+    <div id="app"></div>
+    <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference@1.78.1"></script>
+    <script>
+      Scalar.createApiReference('#app', {
+        url: '{spec_url}',
+        theme: 'solarized',
+      })
+    </script>
+  </body>
+</html>
+"#;
+
 /// The spec (serialised once) and the Scalar page that renders it.
 fn docs_routes(docs: &OpenApi) -> Router<AppState> {
     let spec = Bytes::from(serde_json::to_vec(docs).expect("the OpenAPI spec serialises"));
-    let page = Bytes::from(
-        aide::scalar::Scalar::new(OPENAPI_PATH)
-            .with_title("Billo API")
-            .html(),
-    );
+    let page = Bytes::from(DOCS_PAGE.replace("{spec_url}", OPENAPI_PATH));
     Router::new()
         .route(
             OPENAPI_PATH,
@@ -347,7 +365,9 @@ mod tests {
         let (status, content_type, body) = get_docs(true, DOCS_PATH).await;
         assert_eq!(status, StatusCode::OK);
         assert!(content_type.starts_with("text/html"), "{content_type}");
-        assert!(String::from_utf8_lossy(&body).contains(OPENAPI_PATH));
+        let page = String::from_utf8_lossy(&body);
+        assert!(page.contains(&format!("url: '{OPENAPI_PATH}'")), "{page}");
+        assert!(page.contains("theme: 'solarized'"), "{page}");
     }
 
     #[tokio::test]

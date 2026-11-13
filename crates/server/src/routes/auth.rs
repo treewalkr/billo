@@ -39,7 +39,11 @@ pub async fn dev_login(
     .await?;
     let token = create_session(&mut *tx, user_id, device_label).await?;
     tx.commit().await?;
-    Ok(Json(LoginResponse { token, user_id }))
+    Ok(Json(LoginResponse {
+        token,
+        user_id,
+        email: Some(email),
+    }))
 }
 
 /// Ends the current session; its token stops working immediately.

@@ -21,7 +21,25 @@ docker compose up -d                      # Postgres + server on :8080
 curl localhost:8080/api/v1/health         # {"status":"ok","version":"0.1.0","build":1}
 ```
 
-Google sign-in isn't wired up yet. For local development the compose file sets `DEV_LOGIN=true`, which lets you sign in with just an email (never enable it in production):
+### Google sign-in
+
+The web app signs in with Google when the server has an OAuth client. Put these in the repo-root `.env` (gitignored; `docker compose` reads it, and `.env.example` lists them with placeholders). Never commit the real values:
+
+- `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`: the **web** OAuth client. Google sign-in is on only when both are set.
+- `GOOGLE_IOS_CLIENT_ID` (optional): the iOS client, also accepted by `POST /api/v1/auth/google`.
+- `PUBLIC_URL` (default `http://localhost:8080`): where the browser reaches the server. The web client's authorized redirect URI must be exactly `{PUBLIC_URL}/api/v1/auth/google/callback`, and its authorized JavaScript origin `http://localhost:8081`.
+- `APP_REDIRECT_ORIGINS` (default `http://localhost:8081` in compose): app origins the sign-in may return to.
+
+```bash
+docker compose up -d --build server
+curl localhost:8080/api/v1/auth/methods   # {"google_sign_in":true,"dev_login":true}
+```
+
+While the Google consent screen is in Testing mode, only its listed test users can sign in. The iOS / Android apps don't offer Google sign-in yet.
+
+### Dev login
+
+For local development the compose file sets `DEV_LOGIN=true`, which lets you sign in with just an email (never enable it in production):
 
 ```bash
 curl -X POST localhost:8080/api/v1/auth/dev-login \
@@ -30,12 +48,16 @@ curl -X POST localhost:8080/api/v1/auth/dev-login \
 curl localhost:8080/api/v1/accounts -H "authorization: Bearer $TOKEN"
 ```
 
+### API docs
+
+With `API_DOCS=true` (set by the compose file and `.env.example`) the server serves an API reference generated from the code at <http://localhost:8080/api/docs>, and the OpenAPI spec at `/api/openapi.json`. Both are off by default. To try authed routes there, sign in with dev login and paste the token into the Bearer field.
+
 Web app (needs the [Dioxus CLI](https://dioxuslabs.com/learn/0.7/getting_started): `cargo install dioxus-cli --version 0.7.10 --locked`):
 
 ```bash
 docker compose up -d                      # the server allows CORS from :8081 in dev
 cd crates/app && dx serve --platform web --port 8081
-# open http://localhost:8081 and sign in with any email (dev login)
+# open http://localhost:8081 and sign in with Google, or with any email (dev login)
 ```
 
 The app talks to `http://localhost:8080` by default; set `BILLO_API_URL` at build time to change it.
@@ -47,6 +69,18 @@ docker compose up -d postgres
 cp .env.example .env                      # optional, for `cargo run -p billo-server`
 DATABASE_URL=postgres://billo:billo@localhost:5432/billo cargo test
 ```
+
+### Demo data
+
+`scripts/seed_demo.py` (Python 3, no dependencies) fills one account with realistic Thai data for Sept–Nov 2026: the starter categories, a bank account and wallet, two credit cards with installment plans, a cash card, two loans, ~130 transactions and budgets for October and November. Re-running it updates the same records instead of adding new ones.
+
+```bash
+python3 scripts/seed_demo.py                    # dev login as demo@billo.dev, then sign in with that email
+python3 scripts/seed_demo.py --email me@x.com   # another dev-login email
+python3 scripts/seed_demo.py --token <token>    # an existing session, e.g. a Google sign-in
+```
+
+For `--token`, copy the session from the signed-in web app: DevTools → Application → Local Storage → `billo.session` (pass its `token` field, or the whole value in single quotes). `--api` sets the server (default `http://localhost:8080`).
 
 ## Docs
 

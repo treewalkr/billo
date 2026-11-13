@@ -13,6 +13,7 @@ pub const RULES_VERSION: u32 = 1;
 /// `{"v": 1}` for accounts without settings, `{"v": 1, "card": {...}}` for cards and
 /// revolving credit, `{"v": 1, "loan": {...}}` for loans.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct AccountRules {
     pub v: u32,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -33,6 +34,7 @@ impl Default for AccountRules {
 
 /// Round to a multiple of `step` minor units (1 = satang, 100 = whole baht).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct RoundingSettings {
     pub step: i64,
     pub mode: RoundingMode,
@@ -48,6 +50,7 @@ impl Default for RoundingSettings {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum RoundingMode {
     Up,
@@ -57,6 +60,7 @@ pub enum RoundingMode {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum DayCount {
     #[default]
@@ -67,6 +71,7 @@ pub enum DayCount {
 
 /// Credit card / revolving credit settings.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct CardSettings {
     /// Day of month the statement is cut (1–31, clamped to month end).
     pub statement_day: u8,
@@ -80,6 +85,7 @@ pub struct CardSettings {
 
 /// `{"days_after_statement": 20}` or `{"day_of_month": 5}`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum DueRule {
     DaysAfterStatement(u16),
@@ -88,6 +94,7 @@ pub enum DueRule {
 
 /// What happens when the due date isn't a business day.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum DueShift {
     None,
@@ -97,6 +104,7 @@ pub enum DueShift {
 
 /// "8% or ฿1,000, whichever is higher".
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct MinPaymentSettings {
     /// 800 = 8%.
     pub percent_bp: u32,
@@ -106,6 +114,7 @@ pub struct MinPaymentSettings {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct InterestSettings {
     /// 1600 = 16% a year.
     pub annual_rate_bp: u32,
@@ -118,6 +127,7 @@ pub struct InterestSettings {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum InterestStart {
     TransactionDate,
@@ -126,12 +136,15 @@ pub enum InterestStart {
 
 /// Loan settings, as on the contract.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct LoanSettings {
     pub principal_minor: i64,
     /// 1500 = 15% a year (flat or effective, per `method`).
     pub annual_rate_bp: u32,
     pub months: u16,
+    #[cfg_attr(feature = "schema", schemars(with = "String", extend("format" = "date")))]
     pub start: Date,
+    #[cfg_attr(feature = "schema", schemars(with = "String", extend("format" = "date")))]
     pub first_payment: Date,
     pub method: LoanMethod,
     /// Used by the effective-rate method.
@@ -145,6 +158,7 @@ pub struct LoanSettings {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum LoanMethod {
     Effective,

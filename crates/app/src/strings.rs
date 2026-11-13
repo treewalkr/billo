@@ -128,8 +128,15 @@ table! {
     sign_out_discard: "Sign out and discard", "ออกจากระบบและทิ้งการเปลี่ยนแปลง";
     email: "Email", "อีเมล";
     email_placeholder: "you@example.com", "you@example.com";
-    dev_sign_in_note: "Development sign-in: enter any email. Google sign-in comes later.", "เข้าสู่ระบบสำหรับนักพัฒนา: ใส่อีเมลใดก็ได้ ส่วนการเข้าสู่ระบบด้วย Google จะตามมาภายหลัง";
-    dev_login_off: "This server doesn't allow development sign-in (DEV_LOGIN is off). Google sign-in isn't available yet.", "เซิร์ฟเวอร์นี้ไม่เปิดให้เข้าสู่ระบบแบบนักพัฒนา (DEV_LOGIN ปิดอยู่) และยังใช้การเข้าสู่ระบบด้วย Google ไม่ได้";
+    dev_sign_in_note: "Development sign-in: enter any email.", "เข้าสู่ระบบสำหรับนักพัฒนา: ใส่อีเมลใดก็ได้";
+    dev_login_off: "This server doesn't allow development sign-in (DEV_LOGIN is off).", "เซิร์ฟเวอร์นี้ไม่เปิดให้เข้าสู่ระบบแบบนักพัฒนา (DEV_LOGIN ปิดอยู่)";
+    sign_in_google: "Sign in with Google", "เข้าสู่ระบบด้วย Google";
+    or_divider: "or", "หรือ";
+    no_sign_in_methods: "This server doesn't offer a way to sign in yet. Ask whoever runs it to turn on Google sign-in.", "เซิร์ฟเวอร์นี้ยังไม่เปิดให้เข้าสู่ระบบ กรุณาติดต่อผู้ดูแลเซิร์ฟเวอร์ให้เปิดการเข้าสู่ระบบด้วย Google";
+    google_cancelled: "Google sign-in was cancelled.", "ยกเลิกการเข้าสู่ระบบด้วย Google แล้ว";
+    google_expired: "Signing in took too long. Please try again.", "การเข้าสู่ระบบใช้เวลานานเกินไป กรุณาลองอีกครั้ง";
+    google_email_unverified: "The email address of this Google account isn't verified. Verify it with Google, then try again.", "อีเมลของบัญชี Google นี้ยังไม่ได้รับการยืนยัน กรุณายืนยันกับ Google แล้วลองอีกครั้ง";
+    google_failed: "Couldn't sign in with Google. Please try again.", "เข้าสู่ระบบด้วย Google ไม่สำเร็จ กรุณาลองอีกครั้ง";
     email_required: "Enter an email address.", "กรุณากรอกอีเมล";
     signed_in_as: "Signed in as", "เข้าสู่ระบบในชื่อ";
     server: "Server", "เซิร์ฟเวอร์";
@@ -305,6 +312,10 @@ table! {
     budgets_note: "Purchases and fees count as spending; refunds reduce it. Amounts in baht only.", "รายการซื้อและค่าธรรมเนียมนับเป็นรายจ่าย ส่วนเงินคืนจะนำมาหักออก นับเฉพาะยอดเงินบาท";
     cant_work_out_budget: "Can't work out this month's budget", "คำนวณงบเดือนนี้ไม่ได้";
     language: "Language", "ภาษา";
+    theme: "Theme", "ธีม";
+    sections: "Sections", "ส่วนต่างๆ";
+    theme_calm: "Calm", "สุขุม";
+    theme_warm: "Warm", "อบอุ่น";
     err_network: "Can't reach the server", "เชื่อมต่อเซิร์ฟเวอร์ไม่ได้";
     err_session_ended: "Your session has ended. Please sign in again.", "เซสชันหมดอายุแล้ว กรุณาเข้าสู่ระบบอีกครั้ง";
     err_not_found: "This item wasn't found on the server.", "ไม่พบรายการนี้บนเซิร์ฟเวอร์";
@@ -773,6 +784,16 @@ pub fn changes_waiting(n: usize) -> String {
     }
 }
 
+/// A `billo_error` code from the web Google sign-in, in plain words.
+pub fn google_error_text(code: &str) -> &'static str {
+    match code {
+        "cancelled" => google_cancelled(),
+        "expired" => google_expired(),
+        "email_unverified" => google_email_unverified(),
+        _ => google_failed(),
+    }
+}
+
 /// Why sign-out stopped: `n` changes are still waiting.
 pub fn unsynced_on_sign_out(n: usize, offline: bool) -> String {
     match (lang(), offline) {
@@ -938,6 +959,31 @@ mod tests {
         let th = unsynced_on_sign_out(3, true);
         assert!(th.contains("3 รายการ") && th.contains("ออฟไลน์"));
         set_lang(Lang::En);
+    }
+
+    #[test]
+    fn google_errors_translate() {
+        for l in Lang::ALL {
+            set_lang(l);
+            for code in [
+                "cancelled",
+                "expired",
+                "email_unverified",
+                "invalid_token",
+                "google",
+                "server",
+                "???",
+            ] {
+                let text = google_error_text(code);
+                assert_eq!(has_thai(text), l == Lang::Th, "{code} in {l:?}: {text}");
+            }
+        }
+        set_lang(Lang::En);
+        assert_eq!(
+            google_error_text("cancelled"),
+            "Google sign-in was cancelled."
+        );
+        assert_eq!(google_error_text("invalid_token"), google_failed());
     }
 
     #[test]

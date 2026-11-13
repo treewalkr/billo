@@ -15,7 +15,9 @@ mod storage;
 mod store;
 mod strings;
 mod sync;
+mod theme;
 mod ui;
+mod web_login;
 
 fn main() {
     dioxus::launch(ui::App);

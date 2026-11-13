@@ -1,11 +1,11 @@
-//! "More": categories, sync, language, the signed-in account, and versions.
+//! "More": categories, sync, language, theme, the signed-in account, and versions.
 
 use dioxus::prelude::*;
 
 use super::sync::SyncCard;
 use super::{
-    ErrorBox, LanguageSwitch, Problem, Screen, sign_out, use_auth, use_holidays, use_nav,
-    use_sign_out,
+    ErrorBox, LanguageSwitch, Problem, Screen, ThemeSwitch, sign_out, use_auth, use_holidays,
+    use_nav, use_sign_out,
 };
 use crate::api::{self, Client};
 use crate::store::use_store;
@@ -22,14 +22,16 @@ pub fn More() -> Element {
         h2 { "{s::more()}" }
         section { class: "card",
             ul { class: "list",
-                li {
-                    class: "clickable",
-                    id: "open-categories",
-                    onclick: move |_| nav.set(Screen::Categories),
-                    div { class: "main",
-                        span { class: "title", "{s::categories()}" }
+                li { class: "clickable",
+                    button {
+                        class: "row-button",
+                        id: "open-categories",
+                        onclick: move |_| nav.set(Screen::Categories),
+                        span { class: "main",
+                            span { class: "title", "{s::categories()}" }
+                        }
+                        span { class: "sub", "aria-hidden": "true", "›" }
                     }
-                    span { class: "sub", "›" }
                 }
             }
         }
@@ -39,6 +41,12 @@ pub fn More() -> Element {
             div { class: "card-head",
                 h3 { "{s::language()}" }
                 LanguageSwitch {}
+            }
+        }
+        section { class: "card", id: "theme",
+            div { class: "card-head",
+                h3 { "{s::theme()}" }
+                ThemeSwitch {}
             }
         }
         section { class: "card", id: "account",

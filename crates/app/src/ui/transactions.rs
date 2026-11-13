@@ -24,9 +24,11 @@ fn is_credit(kind: TransactionKind, minor: i64) -> bool {
     }
 }
 
-fn amount_text(m: &billo_api::Money) -> String {
+/// The amount with `+` (credit) or `−` (charge), so the direction doesn't rely on
+/// colour alone.
+fn amount_text(m: &billo_api::Money, credit: bool) -> String {
     match Currency::from_code(&m.currency) {
-        Some(c) => format::money(Money::new(m.minor, c)),
+        Some(c) => format::signed_money(Money::new(m.minor, c), credit),
         None => format!("{} {}", m.minor, m.currency),
     }
 }
@@ -93,19 +95,20 @@ pub fn TransactionList(account: Record<AccountData>) -> Element {
             rsx! {
                 ul { class: "list", id: "transactions",
                     for (t, title, sub, credit) in rows {
-                        li {
-                            key: "{t.id}",
-                            class: "clickable txn",
-                            onclick: {
-                                let account = account.clone();
-                                let t = t.clone();
-                                move |_| nav.set(Screen::TransactionForm(Box::new(account.clone()), Some(Box::new(t.clone()))))
-                            },
-                            div { class: "main",
-                                span { class: "title", "{title}" }
-                                span { class: "sub", "{sub}" }
+                        li { key: "{t.id}", class: "clickable txn",
+                            button {
+                                class: "row-button",
+                                onclick: {
+                                    let account = account.clone();
+                                    let t = t.clone();
+                                    move |_| nav.set(Screen::TransactionForm(Box::new(account.clone()), Some(Box::new(t.clone()))))
+                                },
+                                span { class: "main",
+                                    span { class: "title", "{title}" }
+                                    span { class: "sub", "{sub}" }
+                                }
+                                span { class: if credit { "amount credit" } else { "amount" }, "{amount_text(&t.data.amount, credit)}" }
                             }
-                            span { class: if credit { "amount credit" } else { "amount" }, "{amount_text(&t.data.amount)}" }
                         }
                     }
                 }

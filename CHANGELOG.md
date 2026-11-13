@@ -4,6 +4,24 @@
 
 ### New
 
+- Sign in with your Google account on the web.
+- Pick a look under "More": Calm (quiet, like a bank statement) or Warm (softer, with rounder corners). Billo remembers your choice on this device.
+
+### Fixed
+
+- Lists of accounts, transactions, installment plans and categories now work with a keyboard and screen readers, and the control you're on is clearly outlined.
+- Transaction amounts now show + for money in and − for money out, not just a colour.
+- Buttons, links and fields are easier to tap: all at least 44 points tall.
+- The bottom tabs no longer sit under the iPhone home indicator, and on wide screens they stay as wide as the page.
+
+### Changed
+
+- A quieter, easier-to-read look: a bank-statement style with the IBM Plex Sans Thai typeface, and larger status labels.
+
+## v0.1.0 — 2026-11-12
+
+### New
+
 - Sign in with your email on development servers, and sign out under "More".
 - Add, edit and delete your accounts: cash, bank accounts, credit cards, cash cards and personal loans.
 - Set up each card your way: statement day, due date, weekend rule, minimum payment, interest rate, interest-free period, credit limit and rounding.

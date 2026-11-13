@@ -65,19 +65,20 @@ pub fn PlanList(account: Record<AccountData>) -> Element {
         Some(Ok(list)) => rsx! {
             ul { class: "list", id: "plans",
                 for p in list.clone() {
-                    li {
-                        key: "{p.id}",
-                        class: "clickable plan",
-                        onclick: {
-                            let account = account.clone();
-                            let p = p.clone();
-                            move |_| nav.set(Screen::PlanForm(Box::new(account.clone()), Some(Box::new(p.clone()))))
-                        },
-                        div { class: "main",
-                            span { class: "title", "{describe(&p.data).0}" }
-                            span { class: "sub", "{describe(&p.data).1}" }
+                    li { key: "{p.id}", class: "clickable plan",
+                        button {
+                            class: "row-button",
+                            onclick: {
+                                let account = account.clone();
+                                let p = p.clone();
+                                move |_| nav.set(Screen::PlanForm(Box::new(account.clone()), Some(Box::new(p.clone()))))
+                            },
+                            span { class: "main",
+                                span { class: "title", "{describe(&p.data).0}" }
+                                span { class: "sub", "{describe(&p.data).1}" }
+                            }
+                            span { class: "sub", "aria-hidden": "true", "›" }
                         }
-                        span { class: "sub", "›" }
                     }
                 }
             }

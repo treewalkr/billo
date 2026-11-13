@@ -5,7 +5,7 @@ use std::fmt;
 
 use billo_api::sync::{PullResponse, PushRequest, PushResponse};
 use billo_api::{
-    DevLoginRequest, ErrorBody, ErrorCode, ErrorDetail, HealthResponse, LoginResponse,
+    AuthMethods, DevLoginRequest, ErrorBody, ErrorCode, ErrorDetail, HealthResponse, LoginResponse,
 };
 use reqwest::{RequestBuilder, Response, StatusCode};
 use serde::de::DeserializeOwned;
@@ -172,6 +172,27 @@ impl Client {
         self.json(self.http.get(self.url("/health"))).await
     }
 
+    /// `GET /auth/methods`: how this server lets people sign in. Servers from before
+    /// the endpoint existed (404) only had dev login.
+    pub async fn auth_methods(&self) -> Result<AuthMethods, ApiError> {
+        match self.json(self.http.get(self.url("/auth/methods"))).await {
+            Err(ApiError::NotFound) => Ok(AuthMethods {
+                google_sign_in: false,
+                dev_login: true,
+            }),
+            other => other,
+        }
+    }
+
+    /// Where the browser goes to start Google sign-in; the server sends it back to
+    /// `return_to` (the app's origin) when done.
+    pub fn google_start_url(&self, return_to: &str) -> String {
+        let query: String = form_urlencoded::Serializer::new(String::new())
+            .append_pair("return_to", return_to)
+            .finish();
+        format!("{}?{query}", self.url("/auth/google/start"))
+    }
+
     /// `POST /auth/dev-login`. A 404 means the server has dev login turned off.
     pub async fn dev_login(&self, email: &str) -> Result<LoginResponse, ApiError> {
         let body = DevLoginRequest {
@@ -289,6 +310,15 @@ mod tests {
         let sentence = ApiError::Validation("email is not a valid address".into());
         assert_eq!(sentence.to_string(), "อีเมลนี้ไม่ถูกต้อง");
         s::set_lang(Lang::En);
+    }
+
+    #[test]
+    fn google_start_url_encodes_return_to() {
+        let c = Client::new("http://localhost:8080", None);
+        assert_eq!(
+            c.google_start_url("http://localhost:8081"),
+            "http://localhost:8080/api/v1/auth/google/start?return_to=http%3A%2F%2Flocalhost%3A8081"
+        );
     }
 
     #[test]

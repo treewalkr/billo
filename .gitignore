@@ -43,6 +43,8 @@ Pods/
 .env.*
 !.env.example
 *.pem
+# TEST-ONLY keys for the mock Google in server tests (protect nothing).
+!crates/server/tests/fixtures/test-rsa-*.pem
 *.key
 google-services.json
 GoogleService-Info.plist

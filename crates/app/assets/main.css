@@ -1,15 +1,123 @@
+/* Design tokens. Every colour, radius, shadow and font comes from here; a theme is
+   one block of values, chosen by `data-theme` on <html> (and on the app root). */
+
+:root,
+[data-theme="calm"] {
+  /* Calm: a quiet bank-statement page. Hairlines, not shadows. */
+  --font: "IBM Plex Sans Thai", system-ui, -apple-system, "Segoe UI", "Noto Sans Thai", sans-serif;
+  --bg: #f4f4f1;
+  --surface: #ffffff;
+  --surface-2: #ebebe5;
+  --line: #dedcd5;
+  --control-line: #8b8f94;
+  --text: #16202e;
+  --muted: #5a6170;
+  --accent: #0e5f63;
+  --on-accent: #ffffff;
+  --accent-soft: #e2eeee;
+  --positive: #1d6b3c;
+  --positive-soft: #e3f1e7;
+  --warning: #8a5000;
+  --warning-soft: #fbefd8;
+  --danger: #b42318;
+  --danger-soft: #fcebe9;
+  --on-danger: #ffffff;
+  --scrim: rgba(22, 32, 46, 0.4);
+  --radius: 10px;
+  --radius-control: 8px;
+  --card-pad: 16px;
+  --card-border: 1px solid var(--line);
+  --card-shadow: none;
+  --dialog-shadow: 0 12px 32px rgba(22, 32, 46, 0.18);
+  --float-shadow: 0 4px 16px rgba(22, 32, 46, 0.1);
+}
+
+
+[data-theme="warm"] {
+  /* Warm: softer and more personal. Soft shadows, rounder corners, more room. */
+  --font: "Anuphan", system-ui, -apple-system, "Segoe UI", "Noto Sans Thai", sans-serif;
+  --bg: #faf5ee;
+  --surface: #ffffff;
+  --surface-2: #f2e9dd;
+  --line: #ece2d4;
+  --control-line: #9c8b79;
+  --text: #2a2119;
+  --muted: #6b5a4b;
+  --accent: #a64721;
+  --on-accent: #ffffff;
+  --accent-soft: #f8e7dc;
+  --positive: #2f6a33;
+  --positive-soft: #e5f0e0;
+  --warning: #8a5000;
+  --warning-soft: #fbeed6;
+  --danger: #b42318;
+  --danger-soft: #fcebe9;
+  --on-danger: #ffffff;
+  --scrim: rgba(42, 33, 25, 0.4);
+  --radius: 16px;
+  --radius-control: 12px;
+  --card-pad: 20px;
+  --card-border: none;
+  --card-shadow: 0 1px 2px rgba(90, 60, 30, 0.06), 0 6px 18px rgba(90, 60, 30, 0.07);
+  --dialog-shadow: 0 16px 40px rgba(90, 60, 30, 0.2);
+  --float-shadow: 0 6px 20px rgba(90, 60, 30, 0.14);
+}
+
 :root {
-  font-family: system-ui, -apple-system, "Segoe UI", "Noto Sans Thai", sans-serif;
-  color: #1c1c1e;
-  background: #f5f5f7;
-  --muted: #6e6e73;
-  --line: #e5e5ea;
-  --accent: #0a6cff;
-  --danger: #c62828;
+  font-family: var(--font);
+  color: var(--text);
+  background: var(--bg);
+  line-height: 1.5;
+  caret-color: var(--accent);
+  accent-color: var(--accent);
+  text-underline-offset: 0.2em;
 }
 
 body {
   margin: 0;
+}
+
+.app {
+  min-height: 100vh;
+  font-family: var(--font);
+  color: var(--text);
+  background: var(--bg);
+}
+
+::selection {
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
+/* Keyboard focus: a clear ring in the accent colour on everything you can operate. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline-offset: 1px;
+  border-color: var(--accent);
+}
+
+/* Full-width rows and tabs: keep the ring inside, so the card edge doesn't clip it. */
+.row-button:focus-visible,
+nav.tabs button:focus-visible {
+  outline-offset: -2px;
+  border-radius: var(--radius-control);
+}
+
+/* Hide scrollbars (like a native app); scrolling still works. */
+html,
+body,
+* {
+  scrollbar-width: none;
+}
+
+::-webkit-scrollbar {
+  display: none;
 }
 
 header {
@@ -17,8 +125,8 @@ header {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 12px 20px;
-  background: #fff;
+  padding: calc(12px + env(safe-area-inset-top, 0px)) 20px 12px;
+  background: var(--surface);
   border-bottom: 1px solid var(--line);
 }
 
@@ -31,20 +139,25 @@ header h1 {
 main {
   max-width: 480px;
   margin: 0 auto;
-  padding: 20px 16px 96px;
+  /* Room for the tab bar and the phone's home indicator below it. */
+  padding: 20px 16px calc(96px + env(safe-area-inset-bottom, 0px));
 }
 
+/* Page titles: one clear step above card headings (16px). */
 main h2 {
-  font-size: 17px;
-  margin: 0 0 12px;
+  font-size: 22px;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  margin: 4px 0 14px;
 }
 
 .card {
-  background: #fff;
-  border-radius: 12px;
-  padding: 16px;
+  background: var(--surface);
+  border: var(--card-border);
+  border-radius: var(--radius);
+  padding: var(--card-pad);
   margin-bottom: 12px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  box-shadow: var(--card-shadow);
 }
 
 .card-head {
@@ -84,27 +197,35 @@ main h2 {
   font-size: 16px;
 }
 
+/* A page whose title sits in its first card (an account). */
+.card-head h2 {
+  margin: 0;
+  font-size: 20px;
+}
+
 .badge {
-  font-size: 11px;
-  padding: 2px 8px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+  padding: 3px 10px;
   border-radius: 999px;
-  background: #eef0f3;
-  color: #44474d;
+  background: var(--surface-2);
+  color: var(--muted);
   white-space: nowrap;
 }
 
 .badge.paid {
-  background: #e3f5e8;
-  color: #1b6b34;
+  background: var(--positive-soft);
+  color: var(--positive);
 }
 
 .badge.unpaid {
-  background: #fff4d6;
-  color: #8a6100;
+  background: var(--warning-soft);
+  color: var(--warning);
 }
 
 .badge.overdue {
-  background: #fde7e7;
+  background: var(--danger-soft);
   color: var(--danger);
 }
 
@@ -117,7 +238,7 @@ dl {
   justify-content: space-between;
   gap: 12px;
   padding: 6px 0;
-  border-bottom: 1px solid #f0f0f2;
+  border-bottom: 1px solid var(--line);
 }
 
 .row.strong dd,
@@ -147,10 +268,10 @@ dd {
 }
 
 .error-box {
-  border: 1px solid #f3c2c2;
-  background: #fdf1f1;
+  border: 1px solid var(--danger);
+  background: var(--danger-soft);
   color: var(--danger);
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   padding: 8px 12px;
   margin: 8px 0;
   font-size: 14px;
@@ -188,20 +309,24 @@ textarea {
   font: inherit;
   font-size: 16px;
   padding: 10px 12px;
-  border: 1px solid #d1d1d6;
-  border-radius: 8px;
-  background: #fff;
+  min-height: 44px;
+  border: 1px solid var(--control-line);
+  border-radius: var(--radius-control);
+  background: var(--surface);
   color: inherit;
 }
 
 input[type="checkbox"] {
-  width: auto;
-  margin-right: 8px;
+  width: 20px;
+  height: 20px;
+  min-height: 0;
+  margin: 0 10px 0 0;
 }
 
 .check {
   display: flex;
   align-items: center;
+  min-height: 44px;
   margin: 12px 0 0;
   font-size: 15px;
 }
@@ -240,10 +365,11 @@ button {
   font: inherit;
   font-size: 15px;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-control);
+  min-height: 44px;
   padding: 10px 16px;
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
   cursor: pointer;
 }
 
@@ -253,19 +379,37 @@ button:disabled {
 }
 
 button.secondary {
-  background: #eef0f3;
-  color: #1c1c1e;
+  background: var(--surface-2);
+  color: var(--text);
 }
 
 button.danger {
-  background: #fdf1f1;
+  background: var(--danger-soft);
   color: var(--danger);
 }
 
+/* Text buttons: a 44px tall target around the words. */
 button.link {
+  display: inline-flex;
+  align-items: center;
+  min-width: 44px;
   background: none;
   color: var(--accent);
-  padding: 4px 0;
+  padding: 0 4px;
+  margin: 0 -4px;
+}
+
+/* Inside a heading or a row, the target overhangs instead of pushing things apart. */
+.card-head h3 button.link,
+.budget-head button.link,
+.list button.link {
+  margin-block: -10px;
+}
+
+/* Short words at the end of a row: the extra width goes on the left. */
+.budget-head button.link,
+.list button.link {
+  justify-content: flex-end;
 }
 
 form > button[type="submit"],
@@ -313,15 +457,39 @@ form > button[type="submit"] {
   justify-content: space-between;
   gap: 12px;
   padding: 10px 0;
-  border-bottom: 1px solid #f0f0f2;
+  border-bottom: 1px solid var(--line);
 }
 
 .list li:last-child {
   border-bottom: none;
 }
 
+/* A whole row that opens something: a real button, laid out like the row. */
 .list li.clickable {
-  cursor: pointer;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.row-button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  /* Reaches 8px past the text on each side, so the focus ring doesn't touch it. */
+  box-sizing: border-box;
+  width: calc(100% + 16px);
+  margin: 0 -8px;
+  min-height: 48px;
+  padding: 10px 8px;
+  border-radius: 0;
+  background: none;
+  color: inherit;
+  font-size: inherit;
+  text-align: left;
+}
+
+.row-button .main {
+  display: block;
 }
 
 .list .main {
@@ -347,7 +515,7 @@ form > button[type="submit"] {
 }
 
 .amount.credit {
-  color: #1b6b34;
+  color: var(--positive);
 }
 
 .group-title {
@@ -368,8 +536,22 @@ nav.tabs {
   bottom: 0;
   display: flex;
   justify-content: center;
-  background: #fff;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  background: var(--surface);
   border-top: 1px solid var(--line);
+}
+
+/* Wide screens: a bar as wide as the page column, not the whole window. */
+@media (min-width: 900px) {
+  nav.tabs {
+    max-width: 480px;
+    margin: 0 auto;
+    bottom: 16px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--float-shadow);
+    overflow: hidden;
+  }
 }
 
 nav.tabs button {
@@ -412,6 +594,7 @@ nav.tabs button.active {
 }
 
 .month-nav button {
+  min-width: 44px;
   padding: 6px 14px;
 }
 
@@ -445,7 +628,7 @@ nav.tabs button.active {
 .bar {
   height: 8px;
   border-radius: 999px;
-  background: #eef0f3;
+  background: var(--surface-2);
   overflow: hidden;
   margin-top: 8px;
 }
@@ -472,8 +655,8 @@ li.over .left {
 
 .lang-switch {
   display: inline-flex;
-  border-radius: 8px;
-  background: #eef0f3;
+  border-radius: var(--radius-control);
+  background: var(--surface-2);
   padding: 2px;
 }
 
@@ -485,10 +668,10 @@ li.over .left {
 }
 
 .lang-switch button.active {
-  background: #fff;
-  color: #1c1c1e;
+  background: var(--surface);
+  color: var(--text);
   font-weight: 600;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 0 0 1px var(--line);
 }
 
 .signin .card-head h2 {
@@ -497,37 +680,39 @@ li.over .left {
 
 /* Sync status: a small pill in the header and in More. */
 .sync-status {
-  font-size: 11px;
-  padding: 2px 8px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+  padding: 3px 10px;
   border-radius: 999px;
-  background: #eef0f3;
-  color: #44474d;
+  background: var(--surface-2);
+  color: var(--muted);
   white-space: nowrap;
   flex-shrink: 0;
 }
 
 .sync-status.synced {
-  background: #e3f5e8;
-  color: #1b6b34;
+  background: var(--positive-soft);
+  color: var(--positive);
 }
 
 .sync-status.waiting,
 .sync-status.offline {
-  background: #fff4d6;
-  color: #8a6100;
+  background: var(--warning-soft);
+  color: var(--warning);
 }
 
 .sync-status.error {
-  background: #fde7e7;
+  background: var(--danger-soft);
   color: var(--danger);
 }
 
 .sync-notice {
   margin: 12px 0;
   padding: 10px 14px;
-  border-radius: 10px;
-  background: #eef4ff;
-  color: #24324a;
+  border-radius: var(--radius);
+  background: var(--accent-soft);
+  color: var(--text);
   font-size: 13px;
 }
 
@@ -562,16 +747,16 @@ li.over .left {
   align-items: center;
   justify-content: center;
   padding: 16px;
-  background: rgba(0, 0, 0, 0.35);
+  background: var(--scrim);
 }
 
 .dialog {
   width: 100%;
   max-width: 400px;
   padding: 20px;
-  border-radius: 14px;
-  background: #fff;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--dialog-shadow);
 }
 
 .dialog h3 {
@@ -591,7 +776,7 @@ li.over .left {
 
 .dialog button.danger {
   background: var(--danger);
-  color: #fff;
+  color: var(--on-danger);
 }
 
 #holidays h4 {
@@ -633,6 +818,7 @@ li.over .left {
 
 .error-details summary {
   cursor: pointer;
+  padding: 10px 0;
 }
 
 .error-details code {
@@ -640,4 +826,40 @@ li.over .left {
   margin-top: 4px;
   overflow-wrap: anywhere;
   white-space: pre-wrap;
+}
+
+/* Sign in with Google: white button with the "G" mark. Its colours are Google's
+   branding guidance, so they stay fixed in every theme. */
+button.google {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  margin-top: 16px;
+  background: #fff;
+  color: #1f1f1f;
+  border: 1px solid #747775;
+  border-radius: 20px;
+  font-weight: 500;
+}
+button.google:hover:not(:disabled) {
+  background: #f8f9fa;
+}
+button.google .google-mark {
+  flex: none;
+}
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 20px 0 4px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.divider::before,
+.divider::after {
+  content: "";
+  flex: 1;
+  border-top: 1px solid var(--line);
 }

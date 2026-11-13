@@ -29,15 +29,17 @@ pub fn PickKind() -> Element {
         section { class: "card",
             ul { class: "list",
                 for k in KINDS {
-                    li {
-                        class: "clickable",
-                        id: "kind-{key(&k)}",
-                        onclick: move |_| nav.set(Screen::NewAccount(Some(k))),
-                        div { class: "main",
-                            span { class: "title", "{s::kind_label(k)}" }
-                            span { class: "sub", "{s::kind_hint(k)}" }
+                    li { class: "clickable",
+                        button {
+                            class: "row-button",
+                            id: "kind-{key(&k)}",
+                            onclick: move |_| nav.set(Screen::NewAccount(Some(k))),
+                            span { class: "main",
+                                span { class: "title", "{s::kind_label(k)}" }
+                                span { class: "sub", "{s::kind_hint(k)}" }
+                            }
+                            span { class: "sub", "aria-hidden": "true", "›" }
                         }
-                        span { class: "sub", "›" }
                     }
                 }
             }

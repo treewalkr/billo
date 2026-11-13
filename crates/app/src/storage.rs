@@ -1,15 +1,17 @@
-//! Keeps the signed-in session, the language choice and the user's extra bank holidays
+//! Keeps the signed-in session, the language and theme choices and the user's extra bank holidays
 //! across restarts.
 //!
 //! Web: `localStorage`. Native: a JSON file in the app's data directory.
 //! TODO: move the native token to the Keychain (iOS) / Keystore (Android), per
 //! architecture §6, before any real release.
 
+use billo_api::AuthMethods;
 use serde::{Deserialize, Serialize};
 use time::Date;
 use uuid::Uuid;
 
 use crate::strings::Lang;
+use crate::theme::Theme;
 
 /// Who is signed in, and the bearer token for the server.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -21,7 +23,9 @@ pub struct Session {
 
 const SESSION: &str = "billo.session";
 const LANG: &str = "billo.lang";
+const THEME: &str = "billo.theme";
 const HOLIDAYS: &str = "billo.holidays";
+const AUTH_METHODS: &str = "billo.auth_methods";
 
 /// The saved session, if any. A corrupt entry counts as signed out.
 pub fn load() -> Option<Session> {
@@ -49,6 +53,31 @@ pub fn load_lang() -> Lang {
 pub fn save_lang(lang: Lang) {
     if let Ok(json) = serde_json::to_string(&lang) {
         backend::write(LANG, &json);
+    }
+}
+
+/// The theme the user chose, or Calm. Kept when signing out.
+pub fn load_theme() -> Theme {
+    backend::read(THEME)
+        .and_then(|json| serde_json::from_str(&json).ok())
+        .unwrap_or_default()
+}
+
+pub fn save_theme(theme: Theme) {
+    if let Ok(json) = serde_json::to_string(&theme) {
+        backend::write(THEME, &json);
+    }
+}
+
+/// How the server last said people can sign in, so the sign-in screen shows straight
+/// away (and offline). Kept when signing out.
+pub fn load_auth_methods() -> Option<AuthMethods> {
+    serde_json::from_str(&backend::read(AUTH_METHODS)?).ok()
+}
+
+pub fn save_auth_methods(methods: &AuthMethods) {
+    if let Ok(json) = serde_json::to_string(methods) {
+        backend::write(AUTH_METHODS, &json);
     }
 }
 

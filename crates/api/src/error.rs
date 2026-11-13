@@ -4,11 +4,13 @@ use serde::{Deserialize, Serialize};
 
 /// `{ "error": { "code": "...", "message": "..." } }`
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct ErrorBody {
     pub error: ErrorDetail,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct ErrorDetail {
     pub code: ErrorCode,
     /// Human-readable, for logs and debugging; not meant to be shown to users as-is.
@@ -16,6 +18,7 @@ pub struct ErrorDetail {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum ErrorCode {
     NotFound,

@@ -5,6 +5,7 @@ pub mod auth;
 pub mod config;
 pub mod error;
 pub mod extract;
+pub mod google;
 pub mod repo;
 pub mod resources;
 pub mod routes;

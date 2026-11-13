@@ -213,7 +213,7 @@ const DOCS_PAGE: &str = r#"<!doctype html>
     <script>
       Scalar.createApiReference('#app', {
         url: '{spec_url}',
-        theme: 'solarized',
+        theme: 'elysiajs',
       })
     </script>
   </body>
@@ -367,7 +367,7 @@ mod tests {
         assert!(content_type.starts_with("text/html"), "{content_type}");
         let page = String::from_utf8_lossy(&body);
         assert!(page.contains(&format!("url: '{OPENAPI_PATH}'")), "{page}");
-        assert!(page.contains("theme: 'solarized'"), "{page}");
+        assert!(page.contains("theme: 'elysiajs'"), "{page}");
     }
 
     #[tokio::test]
